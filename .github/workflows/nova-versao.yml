@@ -1,0 +1,45 @@
+# Toda segunda: se saiu versão nova do Chatwoot, abre PR trocando CHATWOOT_VERSION.
+# O CI do PR (imagem.yml) diz se os patches ainda encaixam; merge = imagem nova.
+name: Nova versão do Chatwoot
+
+on:
+  schedule:
+    - cron: '0 11 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Última versão
+        id: v
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ATUAL="$(tr -d '[:space:]' < CHATWOOT_VERSION)"
+          NOVA="$(gh release view --repo chatwoot/chatwoot --json tagName -q .tagName)"
+          echo "atual=$ATUAL nova=$NOVA"
+          echo "atual=$ATUAL" >> "$GITHUB_OUTPUT"
+          echo "nova=$NOVA" >> "$GITHUB_OUTPUT"
+      - name: Abrir PR
+        if: steps.v.outputs.nova != steps.v.outputs.atual
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NOVA: ${{ steps.v.outputs.nova }}
+          ATUAL: ${{ steps.v.outputs.atual }}
+        run: |
+          RAMO="chatwoot-$NOVA"
+          git ls-remote --exit-code origin "refs/heads/$RAMO" && exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$RAMO"
+          echo "$NOVA" > CHATWOOT_VERSION
+          git commit -am "chore: Chatwoot $ATUAL → $NOVA"
+          git push origin "$RAMO"
+          gh pr create --title "Chatwoot $ATUAL → $NOVA" \
+            --body "Atualização automática. O CI confere se os patches da IMEP (assinatura) encaixam na versão nova. Se falhar, ajustar o patch antes do merge. Notas: https://github.com/chatwoot/chatwoot/releases/tag/$NOVA"

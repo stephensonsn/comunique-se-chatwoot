@@ -1,0 +1,653 @@
+diff --git a/app/controllers/api/v1/accounts_controller.rb b/app/controllers/api/v1/accounts_controller.rb
+index dcb41d6..7e53487 100644
+--- a/app/controllers/api/v1/accounts_controller.rb
++++ b/app/controllers/api/v1/accounts_controller.rb
+@@ -120,7 +120,8 @@ class Api::V1::AccountsController < Api::BaseController
+   end
+ 
+   def permitted_settings_attributes
+-    [:auto_resolve_after, :auto_resolve_message, :auto_resolve_ignore_waiting, :audio_transcriptions, :auto_resolve_label]
++    [:auto_resolve_after, :auto_resolve_message, :auto_resolve_ignore_waiting, :audio_transcriptions, :auto_resolve_label,
++     :signature_position, :signature_delimiter, :signature_locked] # IMEP: assinatura
+   end
+ 
+   def check_signup_enabled
+diff --git a/app/javascript/dashboard/App.vue b/app/javascript/dashboard/App.vue
+index 1a5eb24..d8c9c6e 100644
+--- a/app/javascript/dashboard/App.vue
++++ b/app/javascript/dashboard/App.vue
+@@ -21,6 +21,10 @@ import {
+ } from './helper/pushHelper';
+ import ReconnectService from 'dashboard/helper/ReconnectService';
+ import { useUISettings } from 'dashboard/composables/useUISettings';
++import {
++  resolveSignatureOptions,
++  setSignatureOptions,
++} from 'dashboard/helper/editorHelper';
+ 
+ export default {
+   name: 'App',
+@@ -67,9 +71,22 @@ export default {
+     hideOnOnboardingView() {
+       return !isOnOnboardingView(this.$route);
+     },
++    // IMEP: posição e separador da assinatura (conta + atendente)
++    signatureOptions() {
++      const account = this.currentAccountId
++        ? this.getAccount(this.currentAccountId)
++        : null;
++      return resolveSignatureOptions(account?.settings, this.uiSettings);
++    },
+   },
+ 
+   watch: {
++    signatureOptions: {
++      immediate: true,
++      handler(options) {
++        setSignatureOptions(options);
++      },
++    },
+     currentAccountId: {
+       immediate: true,
+       handler() {
+diff --git a/app/javascript/dashboard/helper/editorHelper.js b/app/javascript/dashboard/helper/editorHelper.js
+index 83a52f1..e0df4c6 100644
+--- a/app/javascript/dashboard/helper/editorHelper.js
++++ b/app/javascript/dashboard/helper/editorHelper.js
+@@ -153,6 +153,85 @@ function appendDelimiter(signature) {
+   return `${SIGNATURE_DELIMITER}\n\n${cleanSignature(signature)}`;
+ }
+ 
++/**
++ * IMEP — posição e separador da assinatura.
++ *
++ * A conta (Configurações → Conta) define o padrão e pode bloquear a escolha dos
++ * atendentes; sem bloqueio, vale a escolha de cada atendente (Perfil →
++ * Assinatura, em ui_settings). Sem nada configurado, o comportamento é o
++ * original do Chatwoot: assinatura no fim, depois de "--".
++ *
++ * No começo, o nome vira um cabeçalho com dois-pontos dentro do negrito
++ * (`**Stephenson:**`) num parágrafo próprio; no WhatsApp chega como
++ * `*Stephenson:*` + quebra de linha + mensagem.
++ */
++export const SIGNATURE_POSITION = Object.freeze({ START: 'start', END: 'end' });
++
++const DEFAULT_SIGNATURE_OPTIONS = Object.freeze({
++  position: SIGNATURE_POSITION.END,
++  delimiter: true,
++  locked: false,
++});
++
++let currentSignatureOptions = DEFAULT_SIGNATURE_OPTIONS;
++
++/**
++ * Opções efetivas: conta bloqueada → vale a conta; senão → atendente; sem
++ * escolha do atendente → padrão da conta; sem padrão → original.
++ */
++export function resolveSignatureOptions(accountSettings, uiSettings) {
++  const account = accountSettings || {};
++  const user = uiSettings || {};
++  const locked = account.signature_locked === true;
++  const pick = key => {
++    if (locked) return account[key];
++    return user[key] ?? account[key];
++  };
++  return {
++    position:
++      pick('signature_position') === SIGNATURE_POSITION.START
++        ? SIGNATURE_POSITION.START
++        : SIGNATURE_POSITION.END,
++    delimiter: pick('signature_delimiter') !== false,
++    locked,
++  };
++}
++
++export function setSignatureOptions(options) {
++  currentSignatureOptions = {
++    ...DEFAULT_SIGNATURE_OPTIONS,
++    ...(options || {}),
++  };
++}
++
++export function getSignatureOptions() {
++  return currentSignatureOptions;
++}
++
++/** `**Stephenson**` → `**Stephenson:**`; `Stephenson` → `Stephenson:`. */
++export function signatureHeader(signature) {
++  const sig = cleanSignature(signature).trim();
++  const bold = sig.match(/^(\*\*|__)([\s\S]+)\1$/);
++  if (bold) return `${bold[1]}${bold[2].replace(/:\s*$/, '')}:${bold[1]}`;
++  return /:\s*$/.test(sig) ? sig : `${sig}:`;
++}
++
++/** Posição (no começo) da assinatura como cabeçalho, ou -1. */
++function findSignatureHeaderInBody(body, signature) {
++  return body.trimStart().startsWith(signatureHeader(signature))
++    ? body.length - body.trimStart().length
++    : -1;
++}
++
++/** Tira o cabeçalho do começo do corpo, se estiver lá. */
++function removeSignatureHeader(body, signature) {
++  const index = findSignatureHeaderInBody(body, signature);
++  if (index === -1) return body;
++  return body
++    .slice(index + signatureHeader(signature).length)
++    .replace(/^(?:[^\S\n]*\\?\n)+/, '');
++}
++
+ /**
+  * Check if there's an unedited signature at the end of the body
+  * If there is, return the index of the signature, If there isn't, return -1
+@@ -161,7 +240,14 @@ function appendDelimiter(signature) {
+  * @param {string} signature - The signature to search for.
+  * @returns {number} - The index of the last occurrence of the signature in the body, or -1 if not found.
+  */
+-export function findSignatureInBody(body, signature) {
++export function findSignatureInBody(
++  body,
++  signature,
++  options = getSignatureOptions()
++) {
++  if (options.position === SIGNATURE_POSITION.START) {
++    return findSignatureHeaderInBody(body, signature);
++  }
+   const trimmedBody = body.trimEnd();
+   const cleanedSignature = cleanSignature(signature);
+ 
+@@ -200,17 +286,32 @@ export function getEffectiveChannelType(channelType, medium) {
+  *                               For Twilio channels, pass the result of getEffectiveChannelType().
+  * @returns {string} - The body with the signature appended.
+  */
+-export function appendSignature(body, signature, channelType) {
++export function appendSignature(
++  body,
++  signature,
++  channelType,
++  options = getSignatureOptions()
++) {
+   // Strip only unsupported formatting based on channel capabilities
+   const preparedSignature = channelType
+     ? stripUnsupportedMarkdown(signature, channelType)
+     : signature;
+   const cleanedSignature = cleanSignature(preparedSignature);
+   // if signature is already present, return body
+-  if (findSignatureInBody(body, cleanedSignature) > -1) {
++  if (findSignatureInBody(body, cleanedSignature, options) > -1) {
+     return body;
+   }
+ 
++  // IMEP: no começo, como cabeçalho, num parágrafo próprio
++  if (options.position === SIGNATURE_POSITION.START) {
++    const rest = body.trim();
++    return `${signatureHeader(cleanedSignature)}\n\n${rest}`;
++  }
++  // IMEP: no fim, sem o "--"
++  if (options.delimiter === false) {
++    return `${body.trimEnd()}\n\n${cleanedSignature}`;
++  }
++
+   return `${body.trimEnd()}\n\n${appendDelimiter(cleanedSignature)}`;
+ }
+ 
+@@ -234,14 +335,23 @@ export function removeSignature(body, signature, channelType) {
+     cleanSignature(extractTextFromMarkdown(signature)),
+   ].filter((sig, i, arr) => sig && arr.indexOf(sig) === i); // Remove nulls and duplicates
+ 
++  // IMEP: a assinatura pode estar no começo (cabeçalho) e/ou no fim — remove
++  // das duas posições, assim trocar a opção com rascunho aberto não duplica.
++  let semCabecalho = body;
++  signaturesToTry.forEach(sig => {
++    semCabecalho = removeSignatureHeader(semCabecalho, sig);
++  });
++  const fim = { ...DEFAULT_SIGNATURE_OPTIONS };
++
+   // Find the first matching signature
+   const signatureIndex = signaturesToTry.reduce(
+-    (index, sig) => (index === -1 ? findSignatureInBody(body, sig) : index),
++    (index, sig) =>
++      index === -1 ? findSignatureInBody(semCabecalho, sig, fim) : index,
+     -1
+   );
+ 
+   // no need to trim the ends here, because it will simply be removed in the next method
+-  let newBody = body;
++  let newBody = semCabecalho;
+ 
+   // if signature is present, remove it and trim it
+   // trimming will ensure any spaces or new lines before the signature are removed
+diff --git a/app/javascript/dashboard/helper/imepSignatureTexts.js b/app/javascript/dashboard/helper/imepSignatureTexts.js
+new file mode 100644
+index 0000000..2b31b46
+--- /dev/null
++++ b/app/javascript/dashboard/helper/imepSignatureTexts.js
+@@ -0,0 +1,39 @@
++// IMEP — textos da posição/separador da assinatura. Ficam fora dos arquivos de
++// tradução do Chatwoot (que mudam a cada versão) para o patch não conflitar.
++const TEXTOS = {
++  pt_BR: {
++    SECAO: 'Posição da assinatura',
++    NOTA_PERFIL:
++      'Escolha onde a sua assinatura aparece nas mensagens que você envia.',
++    NO_COMECO:
++      'Assinatura no começo da mensagem (ex.: *Seu nome:* e, na linha de baixo, a mensagem)',
++    SEPARADOR: 'Mostrar o separador -- antes da assinatura (quando no fim)',
++    BLOQUEADO: 'Definido pelo administrador da conta.',
++    SALVO: 'Preferência da assinatura salva',
++    ERRO: 'Não foi possível salvar. Tente novamente.',
++    TITULO_CONTA: 'Assinatura das mensagens',
++    NOTA_CONTA:
++      'Padrão da conta para a posição da assinatura dos atendentes. Com o bloqueio, todos seguem este padrão e não podem alterar no perfil.',
++    BLOQUEAR: 'Bloquear alteração pelos atendentes',
++  },
++  en: {
++    SECAO: 'Signature position',
++    NOTA_PERFIL:
++      'Choose where your signature appears in the messages you send.',
++    NO_COMECO:
++      'Signature at the start of the message (e.g. *Your name:* and the message on the next line)',
++    SEPARADOR: 'Show the -- separator before the signature (when at the end)',
++    BLOQUEADO: 'Set by the account administrator.',
++    SALVO: 'Signature preference saved',
++    ERRO: 'Could not save. Please try again.',
++    TITULO_CONTA: 'Message signature',
++    NOTA_CONTA:
++      "Account default for agents' signature position. When locked, everyone follows it and cannot change it in their profile.",
++    BLOQUEAR: 'Lock for agents',
++  },
++};
++
++export const textoAssinatura = (locale, chave) =>
++  (TEXTOS[String(locale || '').startsWith('pt') ? 'pt_BR' : 'en'] || TEXTOS.en)[
++    chave
++  ];
+diff --git a/app/javascript/dashboard/helper/specs/editorHelperSignatureImep.spec.js b/app/javascript/dashboard/helper/specs/editorHelperSignatureImep.spec.js
+new file mode 100644
+index 0000000..9507bc4
+--- /dev/null
++++ b/app/javascript/dashboard/helper/specs/editorHelperSignatureImep.spec.js
+@@ -0,0 +1,148 @@
++// IMEP — posição (começo/fim) e separador "--" da assinatura.
++import {
++  appendSignature,
++  removeSignature,
++  resolveSignatureOptions,
++  setSignatureOptions,
++  getSignatureOptions,
++  signatureHeader,
++  cleanSignature,
++  SIGNATURE_POSITION,
++} from '../editorHelper';
++
++const START = { position: SIGNATURE_POSITION.START, delimiter: true };
++const END_SEM_TRACO = { position: SIGNATURE_POSITION.END, delimiter: false };
++const ORIGINAL = { position: SIGNATURE_POSITION.END, delimiter: true };
++
++describe('IMEP: assinatura no começo ou no fim, com ou sem --', () => {
++  afterEach(() => setSignatureOptions(null));
++
++  describe('signatureHeader', () => {
++    it('põe os dois-pontos dentro do negrito', () => {
++      expect(signatureHeader('**Stephenson**')).toBe('**Stephenson:**');
++    });
++    it('sem negrito, só acrescenta os dois-pontos', () => {
++      expect(signatureHeader('Stephenson')).toBe('Stephenson:');
++    });
++    it('não duplica os dois-pontos', () => {
++      expect(signatureHeader('**Stephenson:**')).toBe('**Stephenson:**');
++      expect(signatureHeader('Stephenson:')).toBe('Stephenson:');
++    });
++    it('mantém o texto como foi digitado (sem maiúsculas forçadas)', () => {
++      expect(signatureHeader('**Ana Clara**')).toBe('**Ana Clara:**');
++    });
++  });
++
++  describe('appendSignature', () => {
++    it('no começo: cabeçalho num parágrafo próprio e depois a mensagem', () => {
++      expect(appendSignature('Bom dia!', '**Stephenson**', null, START)).toBe(
++        '**Stephenson:**\n\nBom dia!'
++      );
++    });
++    it('no começo com corpo vazio: só o cabeçalho', () => {
++      expect(appendSignature('', '**Stephenson**', null, START)).toBe(
++        '**Stephenson:**\n\n'
++      );
++    });
++    it('no começo: não repete se já está lá', () => {
++      const body = '**Stephenson:**\n\nBom dia!';
++      expect(appendSignature(body, '**Stephenson**', null, START)).toBe(body);
++    });
++    it('no fim sem --', () => {
++      expect(
++        appendSignature('Bom dia!', '**Stephenson**', null, END_SEM_TRACO)
++      ).toBe('Bom dia!\n\n**Stephenson**');
++    });
++    it('padrão continua o original (fim com --)', () => {
++      expect(appendSignature('Bom dia!', '**Stephenson**')).toBe(
++        appendSignature('Bom dia!', '**Stephenson**', null, ORIGINAL)
++      );
++      expect(appendSignature('Bom dia!', '**Stephenson**')).toContain(
++        '--\n\n**Stephenson**'
++      );
++    });
++    it('usa as opções globais definidas pelo painel', () => {
++      setSignatureOptions(START);
++      expect(appendSignature('Oi', '**Stephenson**')).toBe(
++        '**Stephenson:**\n\nOi'
++      );
++    });
++    it('o markdown gerado é estável no editor (parse + serialize)', () => {
++      const body = appendSignature('Bom dia!', '**Stephenson**', null, START);
++      expect(cleanSignature(body)).toBe(body);
++    });
++  });
++
++  describe('removeSignature', () => {
++    it('remove o cabeçalho do começo', () => {
++      expect(
++        removeSignature('**Stephenson:**\n\nBom dia!', '**Stephenson**')
++      ).toBe('Bom dia!');
++    });
++    it('remove a assinatura do fim sem --', () => {
++      expect(
++        removeSignature('Bom dia!\n\n**Stephenson**', '**Stephenson**')
++      ).toBe('Bom dia!');
++    });
++    it('remove a assinatura do fim com -- (comportamento original, mantém as quebras)', () => {
++      const body = appendSignature(
++        'Bom dia!',
++        '**Stephenson**',
++        null,
++        ORIGINAL
++      );
++      expect(removeSignature(body, '**Stephenson**')).toBe('Bom dia!\n\n');
++    });
++    it('trocar de fim para começo com rascunho aberto não duplica', () => {
++      const fim = appendSignature('Bom dia!', '**Stephenson**', null, ORIGINAL);
++      const semAssinatura = removeSignature(fim, '**Stephenson**');
++      expect(
++        appendSignature(semAssinatura, '**Stephenson**', null, START)
++      ).toBe('**Stephenson:**\n\nBom dia!');
++    });
++  });
++
++  describe('resolveSignatureOptions', () => {
++    it('sem nada configurado: original', () => {
++      expect(resolveSignatureOptions(null, null)).toEqual({
++        position: 'end',
++        delimiter: true,
++        locked: false,
++      });
++    });
++    it('atendente escolhe quando a conta não bloqueia', () => {
++      expect(
++        resolveSignatureOptions(
++          { signature_position: 'end' },
++          { signature_position: 'start', signature_delimiter: false }
++        )
++      ).toEqual({ position: 'start', delimiter: false, locked: false });
++    });
++    it('sem escolha do atendente vale o padrão da conta', () => {
++      expect(
++        resolveSignatureOptions(
++          { signature_position: 'start', signature_delimiter: false },
++          {}
++        )
++      ).toEqual({ position: 'start', delimiter: false, locked: false });
++    });
++    it('conta bloqueada ignora a escolha do atendente', () => {
++      expect(
++        resolveSignatureOptions(
++          { signature_position: 'start', signature_locked: true },
++          { signature_position: 'end', signature_delimiter: false }
++        )
++      ).toEqual({ position: 'start', delimiter: true, locked: true });
++    });
++  });
++
++  it('setSignatureOptions(null) volta ao original', () => {
++    setSignatureOptions(START);
++    setSignatureOptions(null);
++    expect(getSignatureOptions()).toEqual({
++      position: 'end',
++      delimiter: true,
++      locked: false,
++    });
++  });
++});
+diff --git a/app/javascript/dashboard/routes/dashboard/settings/account/Index.vue b/app/javascript/dashboard/routes/dashboard/settings/account/Index.vue
+index 55c1e7f..88c28d0 100644
+--- a/app/javascript/dashboard/routes/dashboard/settings/account/Index.vue
++++ b/app/javascript/dashboard/routes/dashboard/settings/account/Index.vue
+@@ -12,6 +12,7 @@ import NextInput from 'next/input/Input.vue';
+ import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
+ import NextButton from 'dashboard/components-next/button/Button.vue';
+ import AccountId from './components/AccountId.vue';
++import SignatureSettings from './components/SignatureSettings.vue';
+ import BuildInfo from './components/BuildInfo.vue';
+ import AccountDelete from './components/AccountDelete.vue';
+ import AudioTranscription from './components/AudioTranscription.vue';
+@@ -22,6 +23,7 @@ export default {
+     BaseSettingsHeader,
+     NextButton,
+     AccountId,
++    SignatureSettings,
+     BuildInfo,
+     AccountDelete,
+     AudioTranscription,
+@@ -248,6 +250,7 @@ export default {
+       <woot-loading-state v-if="uiFlags.isFetchingItem" />
+     </div>
+     <AudioTranscription v-if="showAudioTranscriptionConfig" />
++    <SignatureSettings />
+     <AccountId />
+     <div v-if="!uiFlags.isFetchingItem && isOnChatwootCloud">
+       <AccountDelete />
+diff --git a/app/javascript/dashboard/routes/dashboard/settings/account/components/SignatureSettings.vue b/app/javascript/dashboard/routes/dashboard/settings/account/components/SignatureSettings.vue
+new file mode 100644
+index 0000000..a988929
+--- /dev/null
++++ b/app/javascript/dashboard/routes/dashboard/settings/account/components/SignatureSettings.vue
+@@ -0,0 +1,76 @@
++<script setup>
++// IMEP — padrão da conta para a assinatura dos atendentes (posição e separador)
++// e bloqueio da escolha individual. Gravado em accounts.settings.
++import { computed, ref, watch } from 'vue';
++import { useI18n } from 'vue-i18n';
++import { useAlert } from 'dashboard/composables';
++import { useAccount } from 'dashboard/composables/useAccount';
++import { SIGNATURE_POSITION } from 'dashboard/helper/editorHelper';
++import { textoAssinatura } from 'dashboard/helper/imepSignatureTexts';
++import SectionLayout from './SectionLayout.vue';
++
++const { locale } = useI18n();
++const { currentAccount, updateAccount } = useAccount();
++const txt = chave => textoAssinatura(locale.value, chave);
++
++const noComeco = ref(false);
++const separador = ref(true);
++const bloqueado = ref(false);
++
++const settings = computed(() => currentAccount.value?.settings || {});
++watch(
++  settings,
++  s => {
++    noComeco.value = s.signature_position === SIGNATURE_POSITION.START;
++    separador.value = s.signature_delimiter !== false;
++    bloqueado.value = s.signature_locked === true;
++  },
++  { immediate: true }
++);
++
++const salvar = async () => {
++  try {
++    await updateAccount(
++      {
++        signature_position: noComeco.value
++          ? SIGNATURE_POSITION.START
++          : SIGNATURE_POSITION.END,
++        signature_delimiter: separador.value,
++        signature_locked: bloqueado.value,
++      },
++      { silent: true }
++    );
++    useAlert(txt('SALVO'));
++  } catch {
++    useAlert(txt('ERRO'));
++  }
++};
++</script>
++
++<template>
++  <SectionLayout
++    :title="txt('TITULO_CONTA')"
++    :description="txt('NOTA_CONTA')"
++    with-border
++  >
++    <div class="flex flex-col gap-3">
++      <label class="flex items-center gap-2 text-sm">
++        <input v-model="noComeco" type="checkbox" @change="salvar" />
++        {{ txt('NO_COMECO') }}
++      </label>
++      <label class="flex items-center gap-2 text-sm">
++        <input
++          v-model="separador"
++          type="checkbox"
++          :disabled="noComeco"
++          @change="salvar"
++        />
++        {{ txt('SEPARADOR') }}
++      </label>
++      <label class="flex items-center gap-2 text-sm font-medium">
++        <input v-model="bloqueado" type="checkbox" @change="salvar" />
++        {{ txt('BLOQUEAR') }}
++      </label>
++    </div>
++  </SectionLayout>
++</template>
+diff --git a/app/javascript/dashboard/routes/dashboard/settings/profile/MessageSignature.vue b/app/javascript/dashboard/routes/dashboard/settings/profile/MessageSignature.vue
+index bf6f01f..a427fc9 100644
+--- a/app/javascript/dashboard/routes/dashboard/settings/profile/MessageSignature.vue
++++ b/app/javascript/dashboard/routes/dashboard/settings/profile/MessageSignature.vue
+@@ -5,6 +5,7 @@ import { useAlert } from 'dashboard/composables';
+ import { stripInlineBase64Images } from 'dashboard/helper/editorHelper';
+ import WootMessageEditor from 'dashboard/components/widgets/WootWriter/Editor.vue';
+ import NextButton from 'dashboard/components-next/button/Button.vue';
++import SignaturePositionOptions from './SignaturePositionOptions.vue';
+ 
+ const props = defineProps({
+   messageSignature: {
+@@ -49,6 +50,7 @@ const updateSignature = () => {
+       channel-type="Context::MessageSignature"
+       :enable-suggestions="false"
+     />
++    <SignaturePositionOptions />
+     <div>
+       <NextButton
+         type="submit"
+diff --git a/app/javascript/dashboard/routes/dashboard/settings/profile/SignaturePositionOptions.vue b/app/javascript/dashboard/routes/dashboard/settings/profile/SignaturePositionOptions.vue
+new file mode 100644
+index 0000000..f5e4109
+--- /dev/null
++++ b/app/javascript/dashboard/routes/dashboard/settings/profile/SignaturePositionOptions.vue
+@@ -0,0 +1,71 @@
++<script setup>
++// IMEP — preferência do atendente: assinatura no começo/fim e separador "--".
++// Gravada em ui_settings; se a conta bloquear, vale o padrão da conta.
++import { computed } from 'vue';
++import { useI18n } from 'vue-i18n';
++import { useAlert } from 'dashboard/composables';
++import { useAccount } from 'dashboard/composables/useAccount';
++import { useUISettings } from 'dashboard/composables/useUISettings';
++import {
++  resolveSignatureOptions,
++  SIGNATURE_POSITION,
++} from 'dashboard/helper/editorHelper';
++import { textoAssinatura } from 'dashboard/helper/imepSignatureTexts';
++
++const { locale } = useI18n();
++const { currentAccount } = useAccount();
++const { uiSettings, updateUISettings } = useUISettings();
++
++const txt = chave => textoAssinatura(locale.value, chave);
++const efetivas = computed(() =>
++  resolveSignatureOptions(currentAccount.value?.settings, uiSettings.value)
++);
++const bloqueado = computed(() => efetivas.value.locked);
++const noComeco = computed(
++  () => efetivas.value.position === SIGNATURE_POSITION.START
++);
++
++const salvar = async mudanca => {
++  try {
++    await updateUISettings(mudanca);
++    useAlert(txt('SALVO'));
++  } catch {
++    useAlert(txt('ERRO'));
++  }
++};
++</script>
++
++<template>
++  <div class="flex flex-col gap-3">
++    <div>
++      <p class="text-sm font-medium text-n-slate-12">{{ txt('SECAO') }}</p>
++      <p class="text-sm text-n-slate-11">
++        {{ bloqueado ? txt('BLOQUEADO') : txt('NOTA_PERFIL') }}
++      </p>
++    </div>
++    <label class="flex items-center gap-2 text-sm text-n-slate-12">
++      <input
++        type="checkbox"
++        :checked="noComeco"
++        :disabled="bloqueado"
++        @change="
++          salvar({
++            signature_position: $event.target.checked
++              ? SIGNATURE_POSITION.START
++              : SIGNATURE_POSITION.END,
++          })
++        "
++      />
++      {{ txt('NO_COMECO') }}
++    </label>
++    <label class="flex items-center gap-2 text-sm text-n-slate-12">
++      <input
++        type="checkbox"
++        :checked="efetivas.delimiter"
++        :disabled="bloqueado || noComeco"
++        @change="salvar({ signature_delimiter: $event.target.checked })"
++      />
++      {{ txt('SEPARADOR') }}
++    </label>
++  </div>
++</template>
+diff --git a/app/models/account.rb b/app/models/account.rb
+index 8126081..ae62599 100644
+--- a/app/models/account.rb
++++ b/app/models/account.rb
+@@ -59,6 +59,8 @@ class Account < ApplicationRecord
+   store_accessor :settings, :reporting_timezone
+   store_accessor :settings, :keep_pending_on_bot_failure
+   store_accessor :settings, :captain_auto_resolve_mode, :captain_false_promise_harness_enabled
++  # IMEP: posição/separador da assinatura dos atendentes e bloqueio
++  store_accessor :settings, :signature_position, :signature_delimiter, :signature_locked
+   include AccountCaptainAutoResolve
+ 
+   has_many :account_users, dependent: :destroy_async
+diff --git a/app/models/concerns/account_settings_schema.rb b/app/models/concerns/account_settings_schema.rb
+index dddc66c..ed7c805 100644
+--- a/app/models/concerns/account_settings_schema.rb
++++ b/app/models/concerns/account_settings_schema.rb
+@@ -16,6 +16,10 @@ module AccountSettingsSchema
+         'keep_pending_on_bot_failure': { 'type': %w[boolean null] },
+         'captain_auto_resolve_mode': { 'type': %w[string null], 'enum': ['evaluated', 'legacy', 'disabled', nil] },
+         'captain_false_promise_harness_enabled': { 'type': %w[boolean null] },
++        # IMEP: assinatura dos atendentes
++        'signature_position': { 'type': %w[string null], 'enum': ['start', 'end', nil] },
++        'signature_delimiter': { 'type': %w[boolean null] },
++        'signature_locked': { 'type': %w[boolean null] },
+         'conversation_required_attributes': {
+           'type': %w[array null],
+           'items': { 'type': 'string' }
