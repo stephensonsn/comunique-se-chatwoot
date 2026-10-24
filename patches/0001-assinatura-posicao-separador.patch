@@ -50,6 +50,125 @@ index 1a5eb24..d8c9c6e 100644
      currentAccountId: {
        immediate: true,
        handler() {
+diff --git a/app/javascript/dashboard/components/widgets/WootWriter/Editor.vue b/app/javascript/dashboard/components/widgets/WootWriter/Editor.vue
+index a5d4f03..8d99ed6 100644
+--- a/app/javascript/dashboard/components/widgets/WootWriter/Editor.vue
++++ b/app/javascript/dashboard/components/widgets/WootWriter/Editor.vue
+@@ -52,6 +52,8 @@ import {
+ 
+ import {
+   appendSignature,
++  getSignatureOptions,
++  SIGNATURE_POSITION,
+   collapseSelection,
+   findNodeToInsertImage,
+   getContentNode,
+@@ -453,6 +455,17 @@ function handleEmptyBodyWithSignature() {
+   const isEmptyParagraph = node =>
+     node && node.type === schema.nodes.paragraph && node.content.size === 0;
+ 
++  // IMEP: assinatura no começo → a linha vazia e o cursor ficam DEPOIS do cabeçalho
++  if (getSignatureOptions().position === SIGNATURE_POSITION.START) {
++    if (!isEmptyParagraph(doc.lastChild)) {
++      editorView.dispatch(
++        tr.insert(doc.content.size, schema.nodes.paragraph.create())
++      );
++    }
++    focusEditorInputField('end');
++    return;
++  }
++
+   // Check if empty paragraph already exists to prevent duplicates when toggling signatures
+   if (isEmptyParagraph(doc.firstChild)) {
+     focusEditorInputField('start');
+diff --git a/app/javascript/dashboard/composables/spec/useUISettingsSignatureImep.spec.js b/app/javascript/dashboard/composables/spec/useUISettingsSignatureImep.spec.js
+new file mode 100644
+index 0000000..a5a15e2
+--- /dev/null
++++ b/app/javascript/dashboard/composables/spec/useUISettingsSignatureImep.spec.js
+@@ -0,0 +1,47 @@
++// IMEP — botão de assinatura por canal: ligado por padrão quando a assinatura fica
++// no começo; sempre ligado quando a conta bloqueia; original quando fica no fim.
++import { ref } from 'vue';
++import { useUISettings } from 'dashboard/composables/useUISettings';
++import { setSignatureOptions } from 'dashboard/helper/editorHelper';
++
++const getUISettingsMock = ref({});
++
++vi.mock('dashboard/composables/store', () => ({
++  useStoreGetters: () => ({ getUISettings: getUISettingsMock }),
++  useStore: () => ({ dispatch: vi.fn() }),
++}));
++
++describe('IMEP — assinatura ligada por padrão', () => {
++  afterEach(() => {
++    getUISettingsMock.value = {};
++    setSignatureOptions({});
++  });
++
++  it('no fim e sem escolha: mantém o original (indefinido)', () => {
++    setSignatureOptions({ position: 'end' });
++    const { fetchSignatureFlagFromUISettings } = useUISettings();
++    expect(fetchSignatureFlagFromUISettings('Channel::Whatsapp')).toBe(
++      undefined
++    );
++  });
++
++  it('no começo e o atendente nunca mexeu no botão: vem ligada', () => {
++    setSignatureOptions({ position: 'start' });
++    const { fetchSignatureFlagFromUISettings } = useUISettings();
++    expect(fetchSignatureFlagFromUISettings('Channel::Whatsapp')).toBe(true);
++  });
++
++  it('no começo, mas o atendente desligou no canal: respeita', () => {
++    setSignatureOptions({ position: 'start' });
++    getUISettingsMock.value = { channel_whatsapp_signature_enabled: false };
++    const { fetchSignatureFlagFromUISettings } = useUISettings();
++    expect(fetchSignatureFlagFromUISettings('Channel::Whatsapp')).toBe(false);
++  });
++
++  it('conta bloqueada: sempre ligada, mesmo desligada no canal', () => {
++    setSignatureOptions({ position: 'start', locked: true });
++    getUISettingsMock.value = { channel_whatsapp_signature_enabled: false };
++    const { fetchSignatureFlagFromUISettings } = useUISettings();
++    expect(fetchSignatureFlagFromUISettings('Channel::Whatsapp')).toBe(true);
++  });
++});
+diff --git a/app/javascript/dashboard/composables/useUISettings.js b/app/javascript/dashboard/composables/useUISettings.js
+index c964dc6..0aced1c 100644
+--- a/app/javascript/dashboard/composables/useUISettings.js
++++ b/app/javascript/dashboard/composables/useUISettings.js
+@@ -1,6 +1,10 @@
+ import { computed } from 'vue';
+ import { useStore, useStoreGetters } from 'dashboard/composables/store';
+ import wootConstants from 'dashboard/constants/globals';
++import {
++  getSignatureOptions,
++  SIGNATURE_POSITION,
++} from 'dashboard/helper/editorHelper';
+ 
+ export const DEFAULT_CONVERSATION_SIDEBAR_ITEMS_ORDER = Object.freeze([
+   { name: 'conversation_actions' },
+@@ -106,7 +110,18 @@ const fetchSignatureFlagFromUISettings = (channelType, uiSettings) => {
+   if (!channelType) return false;
+ 
+   const slugifiedChannel = slugifyChannel(channelType);
+-  return uiSettings.value[`${slugifiedChannel}_signature_enabled`];
++  const valor = uiSettings.value[`${slugifiedChannel}_signature_enabled`];
++  // IMEP: conta com assinatura bloqueada → sempre ligada; assinatura no começo
++  // e o atendente nunca mexeu no botão deste canal → já vem ligada.
++  const opcoes = getSignatureOptions();
++  if (opcoes.locked) return true;
++  if (
++    (valor === undefined || valor === null) &&
++    opcoes.position === SIGNATURE_POSITION.START
++  ) {
++    return true;
++  }
++  return valor;
+ };
+ 
+ const fetchQuotedReplyFlagFromUISettings = (channelType, uiSettings) => {
 diff --git a/app/javascript/dashboard/helper/editorHelper.js b/app/javascript/dashboard/helper/editorHelper.js
 index 83a52f1..e0df4c6 100644
 --- a/app/javascript/dashboard/helper/editorHelper.js
@@ -219,10 +338,10 @@ index 83a52f1..e0df4c6 100644
    // trimming will ensure any spaces or new lines before the signature are removed
 diff --git a/app/javascript/dashboard/helper/imepSignatureTexts.js b/app/javascript/dashboard/helper/imepSignatureTexts.js
 new file mode 100644
-index 0000000..2b31b46
+index 0000000..8538665
 --- /dev/null
 +++ b/app/javascript/dashboard/helper/imepSignatureTexts.js
-@@ -0,0 +1,39 @@
+@@ -0,0 +1,47 @@
 +// IMEP — textos da posição/separador da assinatura. Ficam fora dos arquivos de
 +// tradução do Chatwoot (que mudam a cada versão) para o patch não conflitar.
 +const TEXTOS = {
@@ -234,6 +353,10 @@ index 0000000..2b31b46
 +      'Assinatura no começo da mensagem (ex.: *Seu nome:* e, na linha de baixo, a mensagem)',
 +    SEPARADOR: 'Mostrar o separador -- antes da assinatura (quando no fim)',
 +    BLOQUEADO: 'Definido pelo administrador da conta.',
++    PADRAO_CONTA_COMECO:
++      'Padrão da conta: no começo. Aqui você pode escolher diferente para você.',
++    PADRAO_CONTA_FIM:
++      'Padrão da conta: no fim. Aqui você pode escolher diferente para você.',
 +    SALVO: 'Preferência da assinatura salva',
 +    ERRO: 'Não foi possível salvar. Tente novamente.',
 +    TITULO_CONTA: 'Assinatura das mensagens',
@@ -249,6 +372,10 @@ index 0000000..2b31b46
 +      'Signature at the start of the message (e.g. *Your name:* and the message on the next line)',
 +    SEPARADOR: 'Show the -- separator before the signature (when at the end)',
 +    BLOQUEADO: 'Set by the account administrator.',
++    PADRAO_CONTA_COMECO:
++      'Account default: at the start. You can choose differently here.',
++    PADRAO_CONTA_FIM:
++      'Account default: at the end. You can choose differently here.',
 +    SALVO: 'Signature preference saved',
 +    ERRO: 'Could not save. Please try again.',
 +    TITULO_CONTA: 'Message signature',
@@ -548,10 +675,10 @@ index bf6f01f..a427fc9 100644
          type="submit"
 diff --git a/app/javascript/dashboard/routes/dashboard/settings/profile/SignaturePositionOptions.vue b/app/javascript/dashboard/routes/dashboard/settings/profile/SignaturePositionOptions.vue
 new file mode 100644
-index 0000000..f5e4109
+index 0000000..97dee7c
 --- /dev/null
 +++ b/app/javascript/dashboard/routes/dashboard/settings/profile/SignaturePositionOptions.vue
-@@ -0,0 +1,71 @@
+@@ -0,0 +1,80 @@
 +<script setup>
 +// IMEP — preferência do atendente: assinatura no começo/fim e separador "--".
 +// Gravada em ui_settings; se a conta bloquear, vale o padrão da conta.
@@ -575,6 +702,12 @@ index 0000000..f5e4109
 +  resolveSignatureOptions(currentAccount.value?.settings, uiSettings.value)
 +);
 +const bloqueado = computed(() => efetivas.value.locked);
++const padraoConta = computed(() =>
++  currentAccount.value?.settings?.signature_position ===
++  SIGNATURE_POSITION.START
++    ? txt('PADRAO_CONTA_COMECO')
++    : txt('PADRAO_CONTA_FIM')
++);
 +const noComeco = computed(
 +  () => efetivas.value.position === SIGNATURE_POSITION.START
 +);
@@ -595,6 +728,9 @@ index 0000000..f5e4109
 +      <p class="text-sm font-medium text-n-slate-12">{{ txt('SECAO') }}</p>
 +      <p class="text-sm text-n-slate-11">
 +        {{ bloqueado ? txt('BLOQUEADO') : txt('NOTA_PERFIL') }}
++      </p>
++      <p v-if="!bloqueado" class="text-xs text-n-slate-10">
++        {{ padraoConta }}
 +      </p>
 +    </div>
 +    <label class="flex items-center gap-2 text-sm text-n-slate-12">
