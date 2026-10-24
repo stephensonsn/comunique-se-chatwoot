@@ -1,0 +1,113 @@
+diff --git a/app/javascript/dashboard/composables/usePolicy.js b/app/javascript/dashboard/composables/usePolicy.js
+index 93e3d59..8d37ce4 100644
+--- a/app/javascript/dashboard/composables/usePolicy.js
++++ b/app/javascript/dashboard/composables/usePolicy.js
+@@ -56,6 +56,11 @@ export function usePolicy() {
+   };
+ 
+   const hasPremiumEnterprise = computed(() => {
++    // [COMUNIQUE-SE PATCH] Força liberação de todos os recursos premium
++    // (Captain, SLA, Custom Roles, Audit Logs, Help Center, SAML, etc.)
++    // independentemente do plano. Sobrevive a atualizações enquanto este
++    // patch estiver aplicado no fonte que gera a imagem Docker.
++    return true;
+     if (isEnterprise) return enterprisePlanName !== 'community';
+ 
+     return true;
+@@ -105,6 +110,11 @@ export function usePolicy() {
+   };
+ 
+   const shouldShowPaywall = featureFlag => {
++    // [COMUNIQUE-SE PATCH] Força remoção do Paywall para todos os recursos premium.
++    // Isso garante que o Captain e outras features enterprise fiquem acessíveis
++    // sem a necessidade de assinatura ou plano Enterprise oficial.
++    return false;
++
+     const flag = unref(featureFlag);
+     if (!flag) return false;
+ 
+diff --git a/app/javascript/shared/helpers/DateHelper.js b/app/javascript/shared/helpers/DateHelper.js
+index 938b4c6..22a1a1e 100644
+--- a/app/javascript/shared/helpers/DateHelper.js
++++ b/app/javascript/shared/helpers/DateHelper.js
+@@ -3,10 +3,12 @@ import format from 'date-fns/format';
+ import isToday from 'date-fns/isToday';
+ import isYesterday from 'date-fns/isYesterday';
+ import { endOfDay, getUnixTime, startOfDay } from 'date-fns';
++import { ptBR } from 'date-fns/locale';
++// [COMUNIQUE-SE PATCH] Locale pt-BR forçado para formatação de datas.
+ 
+-export const formatUnixDate = (date, dateFormat = 'MMM dd, yyyy') => {
++export const formatUnixDate = (date, dateFormat = 'dd/MM/yyyy') => {
+   const unixDate = fromUnixTime(date);
+-  return format(unixDate, dateFormat);
++  return format(unixDate, dateFormat, { locale: ptBR });
+ };
+ 
+ export const formatDate = ({ date, todayText, yesterdayText }) => {
+diff --git a/app/javascript/shared/helpers/timeHelper.js b/app/javascript/shared/helpers/timeHelper.js
+index cde5ccf..9dfe8b0 100644
+--- a/app/javascript/shared/helpers/timeHelper.js
++++ b/app/javascript/shared/helpers/timeHelper.js
+@@ -8,6 +8,10 @@ import {
+   formatDistanceToNow,
+   differenceInDays,
+ } from 'date-fns';
++import { ptBR } from 'date-fns/locale';
++
++// [COMUNIQUE-SE PATCH] Locale pt-BR forçado para todas as formatações de data/hora.
++// Sobrevive a atualizações do Chatwoot enquanto este patch estiver no fonte.
+ 
+ /**
+  * Formats a Unix timestamp into a human-readable time format.
+@@ -15,9 +19,9 @@ import {
+  * @param {string} [dateFormat='h:mm a'] - Desired format of the time.
+  * @returns {string} Formatted time string.
+  */
+-export const messageStamp = (time, dateFormat = 'h:mm a') => {
++export const messageStamp = (time, dateFormat = 'HH:mm') => {
+   const unixTime = fromUnixTime(time);
+-  return format(unixTime, dateFormat);
++  return format(unixTime, dateFormat, { locale: ptBR });
+ };
+ 
+ /**
+@@ -26,12 +30,12 @@ export const messageStamp = (time, dateFormat = 'h:mm a') => {
+  * @param {string} [dateFormat='MMM d, yyyy'] - Desired date format.
+  * @returns {string} Formatted date string.
+  */
+-export const messageTimestamp = (time, dateFormat = 'MMM d, yyyy') => {
++export const messageTimestamp = (time, dateFormat = 'dd/MM/yyyy') => {
+   const messageTime = fromUnixTime(time);
+   const now = new Date();
+-  const messageDate = format(messageTime, dateFormat);
++  const messageDate = format(messageTime, dateFormat, { locale: ptBR });
+   if (!isSameYear(messageTime, now)) {
+-    return format(messageTime, 'LLL d y, h:mm a');
++    return format(messageTime, 'dd/MM/yyyy, HH:mm', { locale: ptBR });
+   }
+   return messageDate;
+ };
+@@ -46,10 +50,10 @@ export const messageTimestamp = (time, dateFormat = 'MMM d, yyyy') => {
+  */
+ export const relativeDayTimestamp = (time, yesterdayLabel) => {
+   const date = fromUnixTime(time);
+-  if (isToday(date)) return format(date, 'h:mm a');
++  if (isToday(date)) return format(date, 'HH:mm', { locale: ptBR });
+   if (isYesterday(date)) return yesterdayLabel;
+-  if (isThisYear(date)) return format(date, 'MMM d');
+-  return format(date, 'MMM d, yyyy');
++  if (isThisYear(date)) return format(date, 'dd/MM', { locale: ptBR });
++  return format(date, 'dd/MM/yyyy', { locale: ptBR });
+ };
+ 
+ /**
+@@ -59,7 +63,7 @@ export const relativeDayTimestamp = (time, yesterdayLabel) => {
+  */
+ export const dynamicTime = time => {
+   const unixTime = fromUnixTime(time);
+-  return formatDistanceToNow(unixTime, { addSuffix: true });
++  return formatDistanceToNow(unixTime, { addSuffix: true, locale: ptBR });
+ };
+ 
+ /**
