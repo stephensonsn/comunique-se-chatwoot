@@ -81,6 +81,21 @@ index a5d4f03..8d99ed6 100644
    // Check if empty paragraph already exists to prevent duplicates when toggling signatures
    if (isEmptyParagraph(doc.firstChild)) {
      focusEditorInputField('start');
+diff --git a/app/javascript/dashboard/components/widgets/conversation/ReplyBox.vue b/app/javascript/dashboard/components/widgets/conversation/ReplyBox.vue
+index ddfcd0f..0d8a146 100644
+--- a/app/javascript/dashboard/components/widgets/conversation/ReplyBox.vue
++++ b/app/javascript/dashboard/components/widgets/conversation/ReplyBox.vue
+@@ -316,7 +316,9 @@ export default {
+       return (
+         this.isMessageEmpty ||
+         this.message.length === 0 ||
+-        this.message.length > this.maxLength
++        this.message.length > this.maxLength ||
++        // IMEP: só a assinatura (no começo ou no fim), sem texto, não envia
++        !this.hasMeaningfulEditorContent
+       );
+     },
+     sender() {
 diff --git a/app/javascript/dashboard/composables/spec/useUISettingsSignatureImep.spec.js b/app/javascript/dashboard/composables/spec/useUISettingsSignatureImep.spec.js
 new file mode 100644
 index 0000000..a5a15e2
@@ -391,10 +406,10 @@ index 0000000..8538665
 +  ];
 diff --git a/app/javascript/dashboard/helper/specs/editorHelperSignatureImep.spec.js b/app/javascript/dashboard/helper/specs/editorHelperSignatureImep.spec.js
 new file mode 100644
-index 0000000..9507bc4
+index 0000000..cc2c3bf
 --- /dev/null
 +++ b/app/javascript/dashboard/helper/specs/editorHelperSignatureImep.spec.js
-@@ -0,0 +1,148 @@
+@@ -0,0 +1,172 @@
 +// IMEP — posição (começo/fim) e separador "--" da assinatura.
 +import {
 +  appendSignature,
@@ -541,6 +556,30 @@ index 0000000..9507bc4
 +      delimiter: true,
 +      locked: false,
 +    });
++  });
++});
++
++describe('IMEP — só a assinatura não é mensagem', () => {
++  const NO_COMECO = { position: 'start', delimiter: true, locked: false };
++  const NO_FIM = { position: 'end', delimiter: true, locked: false };
++  afterEach(() => setSignatureOptions({}));
++
++  it('no começo: só o cabeçalho fica vazio ao tirar a assinatura', () => {
++    setSignatureOptions(NO_COMECO);
++    const corpo = appendSignature('', '**Stephenson**');
++    expect(removeSignature(corpo, '**Stephenson**').trim()).toBe('');
++  });
++
++  it('no começo: com texto, sobra o texto', () => {
++    setSignatureOptions(NO_COMECO);
++    const corpo = appendSignature('Bom dia!', '**Stephenson**');
++    expect(removeSignature(corpo, '**Stephenson**').trim()).toBe('Bom dia!');
++  });
++
++  it('no fim: só a assinatura fica vazio ao tirar a assinatura', () => {
++    setSignatureOptions(NO_FIM);
++    const corpo = appendSignature('', 'Stephenson');
++    expect(removeSignature(corpo, 'Stephenson').trim()).toBe('');
 +  });
 +});
 diff --git a/app/javascript/dashboard/routes/dashboard/settings/account/Index.vue b/app/javascript/dashboard/routes/dashboard/settings/account/Index.vue
