@@ -1,3 +1,62 @@
+diff --git a/app/javascript/dashboard/components-next/message/MessageMeta.vue b/app/javascript/dashboard/components-next/message/MessageMeta.vue
+index 7a1cb3a..e0e231b 100644
+--- a/app/javascript/dashboard/components-next/message/MessageMeta.vue
++++ b/app/javascript/dashboard/components-next/message/MessageMeta.vue
+@@ -36,7 +36,8 @@ const {
+ } = useMessageContext();
+ 
+ const readableTime = computed(() =>
+-  messageTimestamp(createdAt.value, 'LLL d, h:mm a')
++  // [COMUNIQUE-SE PATCH] Força formato brasileiro (dd/MM, HH:mm) em vez do padrão americano.
++  messageTimestamp(createdAt.value, 'dd/MM, HH:mm')
+ );
+ 
+ const exactTime = computed(() => exactTimestamp(createdAt.value));
+diff --git a/app/javascript/dashboard/components-next/sidebar/Sidebar.vue b/app/javascript/dashboard/components-next/sidebar/Sidebar.vue
+index 0239435..0284708 100644
+--- a/app/javascript/dashboard/components-next/sidebar/Sidebar.vue
++++ b/app/javascript/dashboard/components-next/sidebar/Sidebar.vue
+@@ -501,10 +501,12 @@ const menuItems = computed(() => {
+       ],
+     },
+     {
++      // [COMUNIQUE-SE PATCH] Força visibilidade do Captain independentemente de feature flags.
+       name: 'Captain',
+       icon: 'i-woot-captain',
+       label: t('SIDEBAR.CAPTAIN'),
+       activeOn: ['captain_assistants_create_index'],
++      visible: true, // Força visibilidade
+       children: [
+         {
+           name: 'Overview',
+diff --git a/app/javascript/dashboard/components-next/sidebar/provider.js b/app/javascript/dashboard/components-next/sidebar/provider.js
+index dc84420..369cd69 100644
+--- a/app/javascript/dashboard/components-next/sidebar/provider.js
++++ b/app/javascript/dashboard/components-next/sidebar/provider.js
+@@ -143,6 +143,23 @@ export function useSidebarContext() {
+     const featureFlag = resolveFeatureFlag(to);
+     const installationType = resolveInstallationType(to);
+ 
++    // [COMUNIQUE-SE PATCH] Força visibilidade de features Premium (Captain, SLA, etc.)
++    // Ignora a verificação de featureFlag no banco de dados para estas chaves.
++    const premiumFlags = [
++      'captain_integration',
++      'captain_integration_v2',
++      'captain_tasks',
++      'custom_tools',
++      'sla',
++      'custom_roles',
++      'audit_logs',
++      'help_center',
++      'saml',
++    ];
++    if (premiumFlags.includes(featureFlag)) {
++      return true;
++    }
++
+     return shouldShow(featureFlag, permissions, installationType);
+   };
+ 
 diff --git a/app/javascript/dashboard/composables/usePolicy.js b/app/javascript/dashboard/composables/usePolicy.js
 index 93e3d59..8d37ce4 100644
 --- a/app/javascript/dashboard/composables/usePolicy.js
