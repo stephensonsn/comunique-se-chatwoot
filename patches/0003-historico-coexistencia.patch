@@ -1,0 +1,1931 @@
+diff --git a/app/javascript/dashboard/constants/globals.js b/app/javascript/dashboard/constants/globals.js
+index da91346..a247fa1 100644
+--- a/app/javascript/dashboard/constants/globals.js
++++ b/app/javascript/dashboard/constants/globals.js
+@@ -45,6 +45,8 @@ export default {
+     'https://testimonials.cdn.chatwoot.com/testimonial-content.json',
+   WHATSAPP_EMBEDDED_SIGNUP_DOCS_URL:
+     'https://developers.facebook.com/docs/whatsapp/embedded-signup/custom-flows/onboarding-business-app-users#limitations',
++  WHATSAPP_HISTORY_SYNC_DOCS_URL:
++    'https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-business-app-users',
+   SMALL_SCREEN_BREAKPOINT: 768,
+   LARGE_SCREEN_BREAKPOINT: 1024,
+   AVAILABILITY_STATUS_KEYS: ['online', 'busy', 'offline'],
+diff --git a/app/javascript/dashboard/i18n/locale/en/inboxMgmt.json b/app/javascript/dashboard/i18n/locale/en/inboxMgmt.json
+index 2bf76a1..1a10c4c 100644
+--- a/app/javascript/dashboard/i18n/locale/en/inboxMgmt.json
++++ b/app/javascript/dashboard/i18n/locale/en/inboxMgmt.json
+@@ -8,6 +8,10 @@
+     "NO_RESULTS": "No inboxes found matching your search",
+     "RECONNECTION_REQUIRED": "Your inbox is disconnected. You won't receive new messages until you reauthorize it.",
+     "CLICK_TO_RECONNECT": "Click here to reconnect.",
++    "WHATSAPP_COEXISTENCE_RECONNECT": {
++      "ACTION": "Reconnect via Meta (coexistence)",
++      "DESCRIPTION": "This inbox was set up manually, so the WhatsApp Business app chat history was never requested. Reconnecting through Meta's coexistence signup lets the business share up to 180 days of history (one time only)."
++    },
+     "WHATSAPP_REGISTRATION_INCOMPLETE": "Your WhatsApp Business registration isn’t complete. Please check your display name status in Meta Business Manager before reconnecting.",
+     "COMPLETE_REGISTRATION": "Complete Registration",
+     "LIST": {
+@@ -1160,6 +1164,45 @@
+       "WHATSAPP_EMBEDDED_SIGNUP_SUBHEADER": "This inbox is connected through WhatsApp embedded signup.",
+       "WHATSAPP_EMBEDDED_SIGNUP_DESCRIPTION": "You can reconfigure this inbox to update your WhatsApp Business settings.",
+       "WHATSAPP_RECONFIGURE_BUTTON": "Reconfigure",
++      "WHATSAPP_HISTORY_SYNC": {
++        "STATES": {
++          "requested": {
++            "TITLE": "Preparing chat history",
++            "DESCRIPTION": "WhatsApp accepted the request. The import will begin when Meta sends the shared history."
++          },
++          "receiving": {
++            "TITLE": "Receiving chat history",
++            "DESCRIPTION": "WhatsApp is sending previous one-to-one chats. You can continue using this inbox."
++          },
++          "processing": {
++            "TITLE": "Importing chat history",
++            "DESCRIPTION": "Chatwoot is adding previous chats without creating unread conversations or notifications."
++          },
++          "completed": {
++            "TITLE": "Chat history imported",
++            "DESCRIPTION": "{messages} messages from {conversations} conversations were imported."
++          },
++          "not_shared": {
++            "TITLE": "Chat history wasn’t shared",
++            "DESCRIPTION": "No previous chats were imported. Reconfiguring this inbox will not start another import."
++          },
++          "failed": {
++            "TITLE": "Chat history couldn’t be imported",
++            "DESCRIPTION": "The inbox is still connected. Contact support and share request ID {requestId}."
++          },
++          "no_data_received": {
++            "TITLE": "Waiting for chat history",
++            "DESCRIPTION": "The request was accepted, but WhatsApp has not sent any history yet."
++          },
++          "unknown": {
++            "TITLE": "Chat history status unavailable",
++            "DESCRIPTION": "Chatwoot could not determine the current history import status."
++          }
++        },
++        "PROGRESS_SUMMARY": "{messages} messages imported · {progress}% complete",
++        "COMPLETED_AT": "Completed {time}",
++        "LEARN_MORE": "Learn more"
++      },
+       "WHATSAPP_MANUAL_TRANSFER_TITLE": "Switch to Manual Setup",
+       "WHATSAPP_MANUAL_TRANSFER_SUBHEADER": "This inbox was connected through WhatsApp embedded signup, which is no longer supported. Enter the WhatsApp Cloud API credentials from your own Meta app to switch this inbox to a manual setup. Configure the webhook in your Meta app using the verification token above before switching.",
+       "WHATSAPP_MANUAL_TRANSFER_PHONE_NUMBER_ID_LABEL": "Phone Number ID",
+diff --git a/app/javascript/dashboard/i18n/locale/pt_BR/inboxMgmt.json b/app/javascript/dashboard/i18n/locale/pt_BR/inboxMgmt.json
+index 72e4568..cb92396 100644
+--- a/app/javascript/dashboard/i18n/locale/pt_BR/inboxMgmt.json
++++ b/app/javascript/dashboard/i18n/locale/pt_BR/inboxMgmt.json
+@@ -8,6 +8,10 @@
+     "NO_RESULTS": "Nenhuma caixa de entrada encontrada correspondente à sua busca",
+     "RECONNECTION_REQUIRED": "Sua caixa de entrada está desconectada. Você não receberá novas mensagens até reautorizar.",
+     "CLICK_TO_RECONNECT": "Clique aqui para reconectar.",
++    "WHATSAPP_COEXISTENCE_RECONNECT": {
++      "ACTION": "Reconectar pela Meta (coexistência)",
++      "DESCRIPTION": "Esta caixa foi criada por configuração manual, então o histórico do app WhatsApp Business nunca foi pedido. Ao reconectar pelo cadastro de coexistência da Meta, a empresa pode compartilhar até 180 dias de histórico (uma vez só)."
++    },
+     "WHATSAPP_REGISTRATION_INCOMPLETE": "Seu registro no WhatsApp Business não foi concluído. Verifique o status do seu nome de exibição no Meta Business Manager antes de reconectar.",
+     "COMPLETE_REGISTRATION": "Concluir registro",
+     "LIST": {
+@@ -1051,6 +1055,45 @@
+       "WHATSAPP_EMBEDDED_SIGNUP_SUBHEADER": "Esta caixa de entrada está conectada através da inscrição incorporada do WhatsApp.",
+       "WHATSAPP_EMBEDDED_SIGNUP_DESCRIPTION": "Você pode reconfigurar esta caixa de entrada para atualizar suas configurações do WhatsApp Business.",
+       "WHATSAPP_RECONFIGURE_BUTTON": "Reconfigurar",
++      "WHATSAPP_HISTORY_SYNC": {
++        "STATES": {
++          "requested": {
++            "TITLE": "Preparando o histórico de conversas",
++            "DESCRIPTION": "O WhatsApp aceitou o pedido. A importação começa quando a Meta enviar o histórico compartilhado."
++          },
++          "receiving": {
++            "TITLE": "Recebendo o histórico de conversas",
++            "DESCRIPTION": "O WhatsApp está enviando as conversas individuais anteriores. Você pode continuar usando esta caixa."
++          },
++          "processing": {
++            "TITLE": "Importando o histórico de conversas",
++            "DESCRIPTION": "As conversas anteriores entram resolvidas, sem gerar não lidas, notificações ou envios."
++          },
++          "completed": {
++            "TITLE": "Histórico de conversas importado",
++            "DESCRIPTION": "{messages} mensagens de {conversations} conversas foram importadas."
++          },
++          "not_shared": {
++            "TITLE": "O histórico não foi compartilhado",
++            "DESCRIPTION": "Nenhuma conversa anterior foi importada. Para tentar de novo, é preciso desconectar o número da plataforma e reconectar pela Meta."
++          },
++          "failed": {
++            "TITLE": "Não foi possível importar o histórico",
++            "DESCRIPTION": "A caixa continua conectada. Pedido na Meta: {requestId}."
++          },
++          "no_data_received": {
++            "TITLE": "Aguardando o histórico",
++            "DESCRIPTION": "O pedido foi aceito, mas o WhatsApp ainda não enviou nenhum histórico."
++          },
++          "unknown": {
++            "TITLE": "Status do histórico indisponível",
++            "DESCRIPTION": "Não foi possível saber o status atual da importação do histórico."
++          }
++        },
++        "PROGRESS_SUMMARY": "{messages} mensagens importadas · {progress}% concluído",
++        "COMPLETED_AT": "Concluído {time}",
++        "LEARN_MORE": "Saiba mais"
++      },
+       "WHATSAPP_MANUAL_TRANSFER_TITLE": "Alternar para Configuração Manual",
+       "WHATSAPP_MANUAL_TRANSFER_SUBHEADER": "Esta caixa de entrada foi conectada por meio do cadastro incorporado do WhatsApp, que não é mais compatível. Informe as credenciais da API do WhatsApp Cloud da sua própria aplicação da Meta para migrar esta caixa de entrada para uma configuração manual. Antes de realizar a migração, configure o webhook na sua aplicação da Meta utilizando o token de verificação acima.",
+       "WHATSAPP_MANUAL_TRANSFER_PHONE_NUMBER_ID_LABEL": "ID do Número de Telefone",
+diff --git a/app/javascript/dashboard/routes/dashboard/settings/inbox/Settings.vue b/app/javascript/dashboard/routes/dashboard/settings/inbox/Settings.vue
+index 9f32a84..b5289bf 100644
+--- a/app/javascript/dashboard/routes/dashboard/settings/inbox/Settings.vue
++++ b/app/javascript/dashboard/routes/dashboard/settings/inbox/Settings.vue
+@@ -30,6 +30,7 @@ import CollaboratorsPage from './settingsPage/CollaboratorsPage.vue';
+ import BotConfiguration from './components/BotConfiguration.vue';
+ import AccountHealth from './components/AccountHealth.vue';
+ import TwilioHealth from './components/TwilioHealth.vue';
++import WhatsappHistorySyncStatus from './settingsPage/WhatsappHistorySyncStatus.vue';
+ import WhatsappManualMigrationDialog from './components/WhatsappManualMigrationDialog.vue';
+ import WhatsappManualMigrationBanner from './components/WhatsappManualMigrationBanner.vue';
+ import { FEATURE_FLAGS } from '../../../../featureFlags';
+@@ -50,7 +51,9 @@ import SelectInput from 'dashboard/components-next/select/Select.vue';
+ import Widget from 'dashboard/modules/widget-preview/components/Widget.vue';
+ import AccessToken from 'dashboard/routes/dashboard/settings/profile/AccessToken.vue';
+ import { copyTextToClipboard } from 'shared/helpers/clipboard';
+-import { META_RESTRICTION_STATUS_URL } from 'dashboard/constants/globals';
++import globalConstants, {
++  META_RESTRICTION_STATUS_URL,
++} from 'dashboard/constants/globals';
+ 
+ export default {
+   components: {
+@@ -85,6 +88,7 @@ export default {
+     SelectInput,
+     AccountHealth,
+     TwilioHealth,
++    WhatsappHistorySyncStatus,
+     WhatsappManualMigrationDialog,
+     WhatsappManualMigrationBanner,
+     Widget,
+@@ -93,7 +97,7 @@ export default {
+   },
+   mixins: [inboxMixin],
+   setup() {
+-    return { v$: useVuelidate() };
++    return { globalConstants, v$: useVuelidate() };
+   },
+   data() {
+     return {
+@@ -405,6 +409,22 @@ export default {
+     isEmbeddedSignupWhatsApp() {
+       return this.inbox.provider_config?.source === 'embedded_signup';
+     },
++    // IMEP: o status do histórico aparece sempre que existir um pedido, inclusive em caixa
++    // que nasceu por configuração manual e foi reconectada pela Meta.
++    whatsAppHistorySync() {
++      return this.inbox.history_sync || null;
++    },
++    // IMEP: caixa da API oficial criada por configuração manual, ainda sem histórico pedido
++    // (ou com pedido em falha/recusa) — oferece reconectar pela Meta em coexistência.
++    whatsappCoexistenceReconnect() {
++      const source = this.inbox.provider_config?.source || '';
++      const syncStatus = this.inbox.history_sync?.status;
++      return (
++        this.isAWhatsAppCloudChannel &&
++        source.startsWith('manual_setup') &&
++        (!syncStatus || ['failed', 'not_shared'].includes(syncStatus))
++      );
++    },
+     whatsappUnauthorized() {
+       return (
+         this.isAWhatsAppCloudChannel &&
+@@ -836,12 +856,22 @@ export default {
+           :class="bannerMaxWidth"
+         />
+         <WhatsappReauthorize
+-          v-if="whatsappUnauthorized"
++          v-if="whatsappUnauthorized || whatsappCoexistenceReconnect"
+           :whatsapp-registration-incomplete="whatsappRegistrationIncomplete"
++          :coexistence-reconnect="
++            !whatsappUnauthorized && whatsappCoexistenceReconnect
++          "
+           :inbox="inbox"
+           class="mb-4"
+           :class="bannerMaxWidth"
+         />
++        <WhatsappHistorySyncStatus
++          v-if="whatsAppHistorySync"
++          :sync="whatsAppHistorySync"
++          :learn-more-url="globalConstants.WHATSAPP_HISTORY_SYNC_DOCS_URL"
++          class="mx-6 mb-4"
++          :class="bannerMaxWidth"
++        />
+         <DuplicateInboxBanner
+           v-if="hasDuplicateInstagramInbox"
+           :content="$t('INBOX_MGMT.ADD.INSTAGRAM.DUPLICATE_INBOX_BANNER')"
+diff --git a/app/javascript/dashboard/routes/dashboard/settings/inbox/channels/whatsapp/Reauthorize.vue b/app/javascript/dashboard/routes/dashboard/settings/inbox/channels/whatsapp/Reauthorize.vue
+index 94b46f4..6bd434c 100644
+--- a/app/javascript/dashboard/routes/dashboard/settings/inbox/channels/whatsapp/Reauthorize.vue
++++ b/app/javascript/dashboard/routes/dashboard/settings/inbox/channels/whatsapp/Reauthorize.vue
+@@ -22,6 +22,12 @@ const props = defineProps({
+     type: Boolean,
+     default: false,
+   },
++  // IMEP: caixa criada por configuração manual que pode ser reconectada pela Meta
++  // (Embedded Signup de coexistência) para receber o histórico do app.
++  coexistenceReconnect: {
++    type: Boolean,
++    default: false,
++  },
+ });
+ 
+ const { t } = useI18n();
+@@ -38,6 +44,9 @@ const actionLabel = computed(() => {
+   if (props.whatsappRegistrationIncomplete) {
+     return t('INBOX_MGMT.COMPLETE_REGISTRATION');
+   }
++  if (props.coexistenceReconnect) {
++    return t('INBOX_MGMT.WHATSAPP_COEXISTENCE_RECONNECT.ACTION');
++  }
+   return '';
+ });
+ 
+@@ -45,6 +54,9 @@ const description = computed(() => {
+   if (props.whatsappRegistrationIncomplete) {
+     return t('INBOX_MGMT.WHATSAPP_REGISTRATION_INCOMPLETE');
+   }
++  if (props.coexistenceReconnect) {
++    return t('INBOX_MGMT.WHATSAPP_COEXISTENCE_RECONNECT.DESCRIPTION');
++  }
+   return '';
+ });
+ 
+@@ -174,7 +186,13 @@ const createFinishEventWaiter = () => {
+       window.removeEventListener('message', listener);
+ 
+       if (result.type === SIGNUP_RESULT.FINISH) {
+-        resolve(result.isCoexistence);
++        // IMEP: devolve também os IDs que a Meta informou no FINISH (podem mudar na
++        // reconexão de coexistência); os já gravados ficam como reserva.
++        resolve({
++          isCoexistence: result.isCoexistence,
++          wabaId: data?.data?.waba_id,
++          phoneNumberId: data?.data?.phone_number_id,
++        });
+       } else if (result.type === SIGNUP_RESULT.UNSUPPORTED) {
+         reject(
+           new Error(
+@@ -227,12 +245,13 @@ const handleLoginAndReauthorize = async () => {
+     );
+ 
+     if (hasExistingConfig) {
+-      const isCoexistence = await finishWaiter.promise;
++      const { isCoexistence, wabaId, phoneNumberId } =
++        await finishWaiter.promise;
+       await reauthorizeWhatsApp({
+         code: authCode,
+         business_id: existingConfig.business_account_id,
+-        waba_id: existingConfig.business_account_id,
+-        phone_number_id: existingConfig.phone_number_id,
++        waba_id: wabaId || existingConfig.business_account_id,
++        phone_number_id: phoneNumberId || existingConfig.phone_number_id,
+         is_coexistence: isCoexistence,
+       });
+       return false;
+diff --git a/app/javascript/dashboard/routes/dashboard/settings/inbox/settingsPage/WhatsappHistorySyncStatus.vue b/app/javascript/dashboard/routes/dashboard/settings/inbox/settingsPage/WhatsappHistorySyncStatus.vue
+new file mode 100644
+index 0000000..0a3c9ae
+--- /dev/null
++++ b/app/javascript/dashboard/routes/dashboard/settings/inbox/settingsPage/WhatsappHistorySyncStatus.vue
+@@ -0,0 +1,238 @@
++<script setup>
++import { computed } from 'vue';
++import { useI18n } from 'vue-i18n';
++import { dynamicTime } from 'shared/helpers/timeHelper';
++import Icon from 'dashboard/components-next/icon/Icon.vue';
++import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
++
++const props = defineProps({
++  sync: {
++    type: Object,
++    required: true,
++  },
++  learnMoreUrl: {
++    type: String,
++    default: '',
++  },
++});
++
++const { t } = useI18n();
++
++const STATUS_META = {
++  requested: {
++    icon: 'i-lucide-clock-3',
++    color: 'blue',
++  },
++  receiving: {
++    icon: 'i-lucide-cloud-download',
++    color: 'blue',
++  },
++  processing: {
++    icon: 'i-lucide-loader-circle',
++    color: 'blue',
++  },
++  completed: {
++    icon: 'i-lucide-circle-check',
++    color: 'teal',
++  },
++  not_shared: {
++    icon: 'i-lucide-circle-alert',
++    color: 'amber',
++  },
++  failed: {
++    icon: 'i-lucide-circle-x',
++    color: 'ruby',
++  },
++  no_data_received: {
++    icon: 'i-lucide-hourglass',
++    color: 'amber',
++  },
++  unknown: {
++    icon: 'i-lucide-circle-help',
++    color: 'slate',
++  },
++};
++
++const ICON_CONTAINER_CLASSES = {
++  blue: 'bg-n-blue-3 text-n-blue-11',
++  teal: 'bg-n-teal-3 text-n-teal-11',
++  amber: 'bg-n-amber-3 text-n-amber-11',
++  ruby: 'bg-n-ruby-3 text-n-ruby-11',
++  slate: 'bg-n-alpha-2 text-n-slate-11',
++};
++
++const status = computed(() =>
++  Object.hasOwn(STATUS_META, props.sync.status) ? props.sync.status : 'unknown'
++);
++const statusMeta = computed(() => STATUS_META[status.value]);
++const isProcessing = computed(() => status.value === 'processing');
++const showsProgress = computed(() =>
++  ['receiving', 'processing'].includes(status.value)
++);
++const progress = computed(() => {
++  const value = Number(props.sync.progress);
++  return Number.isFinite(value) ? Math.min(100, Math.max(0, value)) : 0;
++});
++
++const numberLabel = value => Number(value || 0).toLocaleString();
++
++const stateCopy = computed(() => {
++  if (status.value === 'requested') {
++    return {
++      title: t(
++        'INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_HISTORY_SYNC.STATES.requested.TITLE'
++      ),
++      description: t(
++        'INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_HISTORY_SYNC.STATES.requested.DESCRIPTION'
++      ),
++    };
++  }
++  if (status.value === 'receiving') {
++    return {
++      title: t(
++        'INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_HISTORY_SYNC.STATES.receiving.TITLE'
++      ),
++      description: t(
++        'INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_HISTORY_SYNC.STATES.receiving.DESCRIPTION'
++      ),
++    };
++  }
++  if (status.value === 'processing') {
++    return {
++      title: t(
++        'INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_HISTORY_SYNC.STATES.processing.TITLE'
++      ),
++      description: t(
++        'INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_HISTORY_SYNC.STATES.processing.DESCRIPTION'
++      ),
++    };
++  }
++  if (status.value === 'completed') {
++    return {
++      title: t(
++        'INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_HISTORY_SYNC.STATES.completed.TITLE'
++      ),
++      description: t(
++        'INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_HISTORY_SYNC.STATES.completed.DESCRIPTION',
++        {
++          messages: numberLabel(props.sync.imported_messages),
++          conversations: numberLabel(props.sync.imported_conversations),
++        }
++      ),
++    };
++  }
++  if (status.value === 'not_shared') {
++    return {
++      title: t(
++        'INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_HISTORY_SYNC.STATES.not_shared.TITLE'
++      ),
++      description: t(
++        'INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_HISTORY_SYNC.STATES.not_shared.DESCRIPTION'
++      ),
++    };
++  }
++  if (status.value === 'failed') {
++    return {
++      title: t(
++        'INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_HISTORY_SYNC.STATES.failed.TITLE'
++      ),
++      description: t(
++        'INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_HISTORY_SYNC.STATES.failed.DESCRIPTION',
++        { requestId: props.sync.request_id || '—' }
++      ),
++    };
++  }
++  if (status.value === 'no_data_received') {
++    return {
++      title: t(
++        'INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_HISTORY_SYNC.STATES.no_data_received.TITLE'
++      ),
++      description: t(
++        'INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_HISTORY_SYNC.STATES.no_data_received.DESCRIPTION'
++      ),
++    };
++  }
++
++  return {
++    title: t(
++      'INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_HISTORY_SYNC.STATES.unknown.TITLE'
++    ),
++    description: t(
++      'INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_HISTORY_SYNC.STATES.unknown.DESCRIPTION'
++    ),
++  };
++});
++
++const title = computed(() => stateCopy.value.title);
++const description = computed(() => stateCopy.value.description);
++const progressSummary = computed(() =>
++  t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_HISTORY_SYNC.PROGRESS_SUMMARY', {
++    messages: numberLabel(props.sync.imported_messages),
++    progress: progress.value,
++  })
++);
++const completedAtLabel = computed(() => {
++  if (!props.sync.completed_at) return '';
++
++  return t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_HISTORY_SYNC.COMPLETED_AT', {
++    time: dynamicTime(props.sync.completed_at),
++  });
++});
++</script>
++
++<template>
++  <section
++    class="rounded-xl border border-n-weak bg-n-solid-1 px-3 py-2.5"
++    role="status"
++    aria-live="polite"
++  >
++    <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
++      <div
++        class="grid size-8 shrink-0 place-items-center rounded-lg"
++        :class="ICON_CONTAINER_CLASSES[statusMeta.color]"
++      >
++        <Spinner v-if="isProcessing" :size="14" />
++        <Icon v-else :icon="statusMeta.icon" class="size-4" />
++      </div>
++
++      <div
++        class="flex min-w-48 flex-1 flex-wrap items-baseline gap-x-2 gap-y-0.5"
++      >
++        <h4 class="text-label text-n-slate-12">
++          {{ title }}
++        </h4>
++        <span class="text-label-small text-n-slate-10">
++          {{ showsProgress ? progressSummary : description }}
++        </span>
++        <span v-if="completedAtLabel" class="text-label-small text-n-slate-10">
++          {{ completedAtLabel }}
++        </span>
++        <a
++          v-if="learnMoreUrl"
++          :href="learnMoreUrl"
++          target="_blank"
++          rel="noopener noreferrer"
++          class="shrink-0 text-label-small text-n-brand hover:underline"
++        >
++          {{ $t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_HISTORY_SYNC.LEARN_MORE') }}
++        </a>
++      </div>
++
++      <div
++        v-if="showsProgress"
++        class="hidden h-1.5 w-24 shrink-0 grid-cols-[repeat(100,minmax(0,1fr))] overflow-hidden rounded-full bg-n-alpha-2 lg:grid"
++        role="progressbar"
++        :aria-valuenow="progress"
++        aria-valuemin="0"
++        aria-valuemax="100"
++      >
++        <span
++          v-for="segment in 100"
++          :key="segment"
++          class="h-full"
++          :class="segment <= progress ? 'bg-n-brand' : 'bg-transparent'"
++        />
++      </div>
++    </div>
++  </section>
++</template>
+diff --git a/app/jobs/webhooks/whatsapp_events_job.rb b/app/jobs/webhooks/whatsapp_events_job.rb
+index 19058e2..379187a 100644
+--- a/app/jobs/webhooks/whatsapp_events_job.rb
++++ b/app/jobs/webhooks/whatsapp_events_job.rb
+@@ -27,7 +27,9 @@ class Webhooks::WhatsappEventsJob < MutexApplicationJob
+   end
+ 
+   def process_events(channel, params, locked_sender_id = nil)
+-    if message_echo_event?(params)
++    if history_sync_event?(params)
++      handle_history_sync(channel, params)
++    elsif message_echo_event?(params)
+       handle_message_echo(channel, params)
+     else
+       handle_message_events(channel, params, locked_sender_id)
+@@ -81,6 +83,14 @@ class Webhooks::WhatsappEventsJob < MutexApplicationJob
+     params.dig(:entry, 0, :changes, 0, :field) == 'smb_message_echoes'
+   end
+ 
++  def history_sync_event?(params)
++    params.dig(:entry, 0, :changes, 0, :field) == 'history'
++  end
++
++  def handle_history_sync(channel, params)
++    Whatsapp::HistorySync::IngestService.new(channel: channel, params: params).perform
++  end
++
+   def handle_message_echo(channel, params)
+     Whatsapp::IncomingMessageWhatsappCloudService.new(inbox: channel.inbox, params: params, outgoing_echo: true).perform
+   end
+diff --git a/app/jobs/whatsapp/history_sync_event_job.rb b/app/jobs/whatsapp/history_sync_event_job.rb
+new file mode 100644
+index 0000000..d6ddc94
+--- /dev/null
++++ b/app/jobs/whatsapp/history_sync_event_job.rb
+@@ -0,0 +1,66 @@
++class Whatsapp::HistorySyncEventJob < MutexApplicationJob
++  queue_as :low
++
++  retry_on LockAcquisitionError, wait: 5.seconds, attempts: 120
++  retry_on Whatsapp::HistorySync::Importer::MissingHistoricalMessageError, wait: 10.seconds, attempts: 12 do |job, error|
++    event = WhatsappHistorySyncEvent.find_by(id: job.arguments.first)
++    event&.update!(status: :failed, error_message: error.message)
++    event&.history_sync&.update!(status: :failed, last_error_message: error.message)
++  end
++
++  def perform(event_id)
++    event = WhatsappHistorySyncEvent.find(event_id)
++    return if event.processed?
++
++    with_lock("whatsapp_history_sync:#{event.whatsapp_history_sync_id}", 10.minutes) do
++      process_event(event.reload)
++    end
++  end
++
++  private
++
++  def process_event(event)
++    return if event.processed?
++
++    event.update!(status: :processing, error_message: nil)
++    sync = event.history_sync
++    sync.update!(status: :processing) unless sync.not_shared? || sync.completed?
++
++    result = Whatsapp::HistorySync::Importer.new(event).perform
++    event.update!(status: :processed, processed_at: Time.current)
++    update_sync(sync, result)
++  rescue Whatsapp::HistorySync::Importer::MissingHistoricalMessageError
++    event.update!(status: :pending)
++    raise
++  rescue StandardError => e
++    event.update!(status: :failed, error_message: e.message)
++    event.history_sync.update!(status: :failed, last_error_message: e.message)
++    Rails.logger.error("[WHATSAPP HISTORY SYNC] Event #{event.id} failed: #{e.class} - #{e.message}")
++  end
++
++  def update_sync(sync, result)
++    sync.reload
++    attributes = sync_counter_attributes(sync, result)
++    attributes.merge!(sync_status_attributes(sync, result, attributes[:progress]))
++    sync.update!(attributes)
++  end
++
++  def sync_counter_attributes(sync, result)
++    {
++      progress: [sync.progress, result.progress.to_i].max,
++      imported_messages: sync.imported_messages + result.messages,
++      imported_conversations: sync.imported_conversations + result.conversations
++    }
++  end
++
++  def sync_status_attributes(sync, result, progress)
++    return { status: result.terminal_status, completed_at: Time.current } if result.terminal_status
++    return { status: :completed, completed_at: Time.current } if sync_complete?(sync, progress)
++
++    { status: :processing }
++  end
++
++  def sync_complete?(sync, progress)
++    progress == 100 && sync.events.where.not(status: :processed).none?
++  end
++end
+diff --git a/app/models/channel/whatsapp.rb b/app/models/channel/whatsapp.rb
+index 1956e39..984fdfe 100644
+--- a/app/models/channel/whatsapp.rb
++++ b/app/models/channel/whatsapp.rb
+@@ -30,6 +30,11 @@ class Channel::Whatsapp < ApplicationRecord
+   EDITABLE_ATTRS = [:phone_number, :provider, { provider_config: {} }].freeze
+   encrypts :business_management_token if Chatwoot.encryption_configured?
+ 
++  has_one :whatsapp_history_sync,
++          foreign_key: :whatsapp_channel_id,
++          dependent: :destroy_async,
++          inverse_of: :channel
++
+   # default at the moment is 360dialog lets change later.
+   PROVIDERS = %w[default whatsapp_cloud].freeze
+   before_validation :ensure_webhook_verify_token
+diff --git a/app/models/whatsapp_history_sync.rb b/app/models/whatsapp_history_sync.rb
+new file mode 100644
+index 0000000..4be2a85
+--- /dev/null
++++ b/app/models/whatsapp_history_sync.rb
+@@ -0,0 +1,48 @@
++# == Schema Information
++#
++# Table name: whatsapp_history_syncs
++#
++class WhatsappHistorySync < ApplicationRecord
++  NO_DATA_RECEIVED_AFTER = 24.hours
++
++  belongs_to :channel, class_name: 'Channel::Whatsapp', foreign_key: :whatsapp_channel_id, inverse_of: :whatsapp_history_sync
++  has_many :events, class_name: 'WhatsappHistorySyncEvent', dependent: :destroy_async, inverse_of: :history_sync
++
++  enum status: {
++    requested: 0,
++    receiving: 1,
++    processing: 2,
++    completed: 3,
++    not_shared: 4,
++    failed: 5
++  }
++
++  validates :progress, inclusion: { in: 0..100 }
++  validates :whatsapp_channel_id, uniqueness: true
++
++  after_commit :invalidate_inbox_cache
++
++  def api_status
++    return 'no_data_received' if requested? && first_event_at.blank? && updated_at < NO_DATA_RECEIVED_AFTER.ago
++
++    status
++  end
++
++  def api_payload
++    {
++      status: api_status,
++      progress: progress,
++      imported_messages: imported_messages,
++      imported_conversations: imported_conversations,
++      request_id: request_id,
++      started_at: started_at&.to_i,
++      completed_at: completed_at&.to_i
++    }.compact
++  end
++
++  private
++
++  def invalidate_inbox_cache
++    channel.account.update_cache_key('inbox')
++  end
++end
+diff --git a/app/models/whatsapp_history_sync_event.rb b/app/models/whatsapp_history_sync_event.rb
+new file mode 100644
+index 0000000..f9351c3
+--- /dev/null
++++ b/app/models/whatsapp_history_sync_event.rb
+@@ -0,0 +1,11 @@
++# == Schema Information
++#
++# Table name: whatsapp_history_sync_events
++#
++class WhatsappHistorySyncEvent < ApplicationRecord
++  belongs_to :history_sync, class_name: 'WhatsappHistorySync', foreign_key: :whatsapp_history_sync_id, inverse_of: :events
++
++  enum status: { pending: 0, processing: 1, processed: 2, failed: 3 }
++
++  validates :event_key, presence: true, uniqueness: { scope: :whatsapp_history_sync_id }
++end
+diff --git a/app/services/whatsapp/embedded_signup_service.rb b/app/services/whatsapp/embedded_signup_service.rb
+index bb15f51..5414a56 100644
+--- a/app/services/whatsapp/embedded_signup_service.rb
++++ b/app/services/whatsapp/embedded_signup_service.rb
+@@ -20,6 +20,7 @@ class Whatsapp::EmbeddedSignupService
+     # 2. We need to run check_channel_health_and_prompt_reauth after webhook setup completes
+     # 3. The channel is marked with source: 'embedded_signup' to skip the after_commit callback
+     channel.setup_webhooks(is_coexistence: @is_coexistence)
++    request_history_sync(channel) if history_sync_eligible?(channel)
+     # Skip health check on reauth (avoids false disconnect emails) and on coexistence signups
+     # (Meta's health data can lag several minutes behind a fresh FINISH event).
+     check_channel_health_and_prompt_reauth(channel) if @inbox_id.blank? && !@is_coexistence
+@@ -67,6 +68,24 @@ class Whatsapp::EmbeddedSignupService
+     end
+   end
+ 
++  def request_history_sync(channel)
++    Whatsapp::HistorySync::RequestService.new(channel).perform
++  rescue StandardError => e
++    Rails.logger.error("[WHATSAPP HISTORY SYNC] Request failed for channel #{channel.id}: #{e.message}")
++  end
++
++  # IMEP: também vale na reautorização de uma caixa existente (ex.: criada por configuração manual),
++  # desde que seja coexistência e o histórico ainda não tenha sido pedido (ou o pedido anterior
++  # terminou em falha/recusa). A Meta só entrega o histórico uma vez por conexão.
++  def history_sync_eligible?(channel)
++    @is_coexistence && !channel.reauthorization_required? && history_sync_requestable?(channel)
++  end
++
++  def history_sync_requestable?(channel)
++    sync = channel.whatsapp_history_sync
++    sync.nil? || sync.failed? || sync.not_shared?
++  end
++
+   def check_channel_health_and_prompt_reauth(channel)
+     health_data = Whatsapp::HealthService.new(channel).fetch_health_status
+     return unless health_data
+diff --git a/app/services/whatsapp/facebook_api_client.rb b/app/services/whatsapp/facebook_api_client.rb
+index 2177105..db91255 100644
+--- a/app/services/whatsapp/facebook_api_client.rb
++++ b/app/services/whatsapp/facebook_api_client.rb
+@@ -1,7 +1,7 @@
+ class Whatsapp::FacebookApiClient
+   BASE_URI = 'https://graph.facebook.com'.freeze
+   # Base webhook fields resent on every subscribe so Meta won't reset to defaults. `calls` is added by callers only when voice is enabled.
+-  WEBHOOK_DEFAULT_FIELDS = %w[messages smb_message_echoes].freeze
++  WEBHOOK_DEFAULT_FIELDS = %w[messages smb_message_echoes history].freeze
+ 
+   def initialize(access_token = nil)
+     @access_token = access_token
+@@ -199,6 +199,19 @@ class Whatsapp::FacebookApiClient
+     handle_response(response, 'WABA app unsubscription failed')
+   end
+ 
++  def request_history_sync(phone_number_id)
++    response = HTTParty.post(
++      "#{BASE_URI}/#{@api_version}/#{phone_number_id}/smb_app_data",
++      headers: request_headers,
++      body: {
++        messaging_product: 'whatsapp',
++        sync_type: 'history'
++      }.to_json
++    )
++
++    handle_response(response, 'WhatsApp history sync request failed')
++  end
++
+   private
+ 
+   def request_headers
+diff --git a/app/services/whatsapp/history_sync/contact_conversation_builder.rb b/app/services/whatsapp/history_sync/contact_conversation_builder.rb
+new file mode 100644
+index 0000000..5edda99
+--- /dev/null
++++ b/app/services/whatsapp/history_sync/contact_conversation_builder.rb
+@@ -0,0 +1,103 @@
++class Whatsapp::HistorySync::ContactConversationBuilder
++  HISTORY_SOURCE = 'whatsapp_history_sync'.freeze
++
++  def initialize(sync, source_id)
++    @sync = sync
++    @inbox = sync.channel.inbox
++    @source_id = source_id.to_s
++  end
++
++  def perform(messages)
++    contact_inbox = find_or_create_contact_inbox
++    find_or_create_conversation(contact_inbox, messages)
++  end
++
++  private
++
++  attr_reader :sync, :inbox, :source_id
++
++  def find_or_create_contact_inbox
++    existing = inbox.contact_inboxes.find_by(source_id: normalized_source_id)
++    return existing if existing
++
++    Contact.transaction(requires_new: true) do
++      contact = find_or_create_contact
++      result = ContactInbox.insert_all!([contact_inbox_attributes(contact)], returning: %w[id]) # rubocop:disable Rails/SkipsModelValidations
++      ContactInbox.find(result.rows.first.first)
++    end
++  rescue ActiveRecord::RecordNotUnique
++    inbox.contact_inboxes.find_by!(source_id: normalized_source_id)
++  end
++
++  def contact_inbox_attributes(contact)
++    {
++      contact_id: contact.id,
++      inbox_id: inbox.id,
++      source_id: normalized_source_id,
++      created_at: Time.current,
++      updated_at: Time.current
++    }
++  end
++
++  def find_or_create_contact
++    contact = inbox.account.contacts.find_by(phone_number: phone_number) if phone_number
++    return contact if contact
++
++    result = Contact.insert_all!([contact_attributes], returning: %w[id]) # rubocop:disable Rails/SkipsModelValidations
++    Contact.find(result.rows.first.first)
++  end
++
++  def contact_attributes
++    {
++      account_id: inbox.account_id,
++      name: phone_number || source_id,
++      phone_number: phone_number,
++      contact_type: Contact.contact_types[:lead],
++      additional_attributes: { source: HISTORY_SOURCE },
++      created_at: Time.current,
++      updated_at: Time.current
++    }
++  end
++
++  def find_or_create_conversation(contact_inbox, messages)
++    existing = inbox.account.conversations.find_by(identifier: history_conversation_identifier(contact_inbox))
++    return [existing, false] if existing
++
++    result = Conversation.insert_all!([conversation_attributes(contact_inbox, messages)], returning: %w[id]) # rubocop:disable Rails/SkipsModelValidations
++    [Conversation.find(result.rows.first.first), true]
++  end
++
++  def conversation_attributes(contact_inbox, messages)
++    timestamps = messages.map { |message| message_timestamp(message) }
++    {
++      account_id: inbox.account_id,
++      inbox_id: inbox.id,
++      contact_id: contact_inbox.contact_id,
++      contact_inbox_id: contact_inbox.id,
++      status: Conversation.statuses[:resolved],
++      identifier: history_conversation_identifier(contact_inbox),
++      additional_attributes: { source: HISTORY_SOURCE },
++      created_at: timestamps.min,
++      updated_at: timestamps.max,
++      last_activity_at: timestamps.max,
++      agent_last_seen_at: timestamps.max,
++      assignee_last_seen_at: timestamps.max
++    }
++  end
++
++  def normalized_source_id
++    @normalized_source_id ||= Whatsapp::PhoneNumberNormalizationService.new(inbox).normalize_and_find_contact_by_provider(source_id, :cloud)
++  end
++
++  def history_conversation_identifier(contact_inbox)
++    "#{HISTORY_SOURCE}:#{inbox.id}:#{contact_inbox.source_id}"
++  end
++
++  def phone_number
++    @phone_number ||= source_id.match?(/\A\d{1,15}\z/) ? "+#{source_id}" : nil
++  end
++
++  def message_timestamp(message)
++    Time.zone.at(Integer(message.fetch('timestamp')))
++  end
++end
+diff --git a/app/services/whatsapp/history_sync/importer.rb b/app/services/whatsapp/history_sync/importer.rb
+new file mode 100644
+index 0000000..c278bcc
+--- /dev/null
++++ b/app/services/whatsapp/history_sync/importer.rb
+@@ -0,0 +1,78 @@
++class Whatsapp::HistorySync::Importer
++  Result = Data.define(:messages, :conversations, :progress, :terminal_status)
++  MissingHistoricalMessageError = Class.new(StandardError)
++
++  def initialize(event)
++    @event = event
++    @sync = event.history_sync
++  end
++
++  def perform
++    return declined_result if history_declined?
++    return media_result if media_assets.present?
++
++    history_result
++  end
++
++  private
++
++  attr_reader :event, :sync
++
++  def history_result
++    messages_count = 0
++    conversations_count = 0
++    importer = Whatsapp::HistorySync::ThreadImporter.new(sync)
++
++    history_entries.each do |entry|
++      Array(entry['threads']).each do |thread|
++        messages = Array(thread['messages'])
++        next if messages.empty?
++
++        result = importer.perform(thread.fetch('id'), messages)
++        messages_count += result[:messages]
++        conversations_count += 1 if result[:conversation_created]
++      end
++    end
++
++    result(messages: messages_count, conversations: conversations_count)
++  end
++
++  def media_result
++    Whatsapp::HistorySync::MediaImporter.new(sync).perform(media_assets)
++    result
++  end
++
++  def declined_result
++    error = history_entries.flat_map { |entry| Array(entry['errors']) }.first || {}
++    sync.update!(
++      last_error_code: error['code'].to_s.presence,
++      last_error_message: error['message'].presence || error['title'].presence
++    )
++    result(terminal_status: :not_shared)
++  end
++
++  def result(messages: 0, conversations: 0, terminal_status: nil)
++    Result.new(
++      messages: messages,
++      conversations: conversations,
++      progress: event.progress.to_i,
++      terminal_status: terminal_status
++    )
++  end
++
++  def history_declined?
++    history_entries.any? { |entry| Array(entry['errors']).any? }
++  end
++
++  def history_entries
++    @history_entries ||= Array(change_value['history'])
++  end
++
++  def media_assets
++    @media_assets ||= Array(change_value['messages'])
++  end
++
++  def change_value
++    @change_value ||= event.payload.dig('entry', 0, 'changes', 0, 'value') || {}
++  end
++end
+diff --git a/app/services/whatsapp/history_sync/ingest_service.rb b/app/services/whatsapp/history_sync/ingest_service.rb
+new file mode 100644
+index 0000000..b9c952d
+--- /dev/null
++++ b/app/services/whatsapp/history_sync/ingest_service.rb
+@@ -0,0 +1,54 @@
++class Whatsapp::HistorySync::IngestService
++  def initialize(channel:, params:)
++    @channel = channel
++    @payload = params.deep_stringify_keys
++  end
++
++  def perform
++    sync = history_sync
++    event = create_event(sync)
++    return event if event.processed? || event.processing?
++
++    sync.update!(
++      status: sync.not_shared? || sync.completed? ? sync.status : :receiving,
++      progress: [sync.progress, event.progress.to_i].max,
++      first_event_at: sync.first_event_at || Time.current
++    )
++    Whatsapp::HistorySyncEventJob.perform_later(event.id)
++    event
++  end
++
++  private
++
++  attr_reader :channel, :payload
++
++  def history_sync
++    channel.whatsapp_history_sync || channel.create_whatsapp_history_sync!(status: :receiving, first_event_at: Time.current)
++  rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid
++    WhatsappHistorySync.find_by!(whatsapp_channel_id: channel.id)
++  end
++
++  def create_event(sync)
++    sync.events.create!(
++      event_key: event_key,
++      payload: payload,
++      phase: history_metadata['phase'],
++      chunk_order: history_metadata['chunk_order'],
++      progress: history_metadata['progress']
++    )
++  rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid
++    sync.events.find_by!(event_key: event_key)
++  end
++
++  def event_key
++    @event_key ||= Digest::SHA256.hexdigest(payload.to_json)
++  end
++
++  def history_metadata
++    @history_metadata ||= Array(change_value['history']).filter_map { |item| item['metadata'] }.max_by { |item| item['progress'].to_i } || {}
++  end
++
++  def change_value
++    @change_value ||= payload.dig('entry', 0, 'changes', 0, 'value') || {}
++  end
++end
+diff --git a/app/services/whatsapp/history_sync/media_importer.rb b/app/services/whatsapp/history_sync/media_importer.rb
+new file mode 100644
+index 0000000..c63b101
+--- /dev/null
++++ b/app/services/whatsapp/history_sync/media_importer.rb
+@@ -0,0 +1,75 @@
++class Whatsapp::HistorySync::MediaImporter
++  MEDIA_TYPES = %w[audio document image sticker video voice].freeze
++
++  def initialize(sync)
++    @sync = sync
++    @channel = sync.channel
++    @inbox = @channel.inbox
++  end
++
++  def perform(media_assets)
++    imported = media_assets.count { |message| attach_media(message) }
++    Rails.logger.info("[WHATSAPP HISTORY SYNC] Attached #{imported} historical media assets for sync #{sync.id}")
++    imported
++  end
++
++  private
++
++  attr_reader :sync, :channel, :inbox
++
++  def attach_media(media_message)
++    message = inbox.messages.find_by(source_id: media_message.fetch('id').to_s)
++    raise_missing_message(media_message) unless message
++
++    type = media_message['type'].to_s
++    payload = media_message[type] || {}
++    return false unless MEDIA_TYPES.include?(type) && payload['id'].present?
++    return false if message.attachments.exists?
++
++    create_attachment(message, payload, type)
++    update_media_message(message, payload)
++    true
++  end
++
++  def raise_missing_message(media_message)
++    raise Whatsapp::HistorySync::Importer::MissingHistoricalMessageError,
++          "Historical message #{media_message['id']} has not arrived yet"
++  end
++
++  def create_attachment(message, payload, type)
++    file = download_attachment_file(payload)
++    message.attachments.create!(
++      account_id: message.account_id,
++      file_type: file_content_type(type),
++      file: {
++        io: file,
++        filename: payload['filename'].presence || file.original_filename,
++        content_type: file.content_type
++      }
++    )
++  end
++
++  def update_media_message(message, payload)
++    content = payload['caption'].presence || payload['filename'].presence
++    attributes = message.additional_attributes.merge('history_media_imported' => true)
++    updates = { additional_attributes: attributes, updated_at: Time.current }
++    updates[:content] = updates[:processed_message_content] = content if content.present?
++    message.update_columns(updates) # rubocop:disable Rails/SkipsModelValidations
++  end
++
++  def download_attachment_file(payload)
++    response = HTTParty.get(channel.media_url(payload.fetch('id')), headers: channel.api_headers)
++    channel.authorization_error! if response.unauthorized?
++    raise "Historical media URL request failed: #{response.code}" unless response.success?
++
++    Down.download(response.parsed_response.fetch('url'), headers: channel.api_headers)
++  end
++
++  def file_content_type(type)
++    return :image if %w[image sticker].include?(type)
++    return :audio if %w[audio voice].include?(type)
++    return :video if type == 'video'
++
++    :file
++  end
++end
+diff --git a/app/services/whatsapp/history_sync/message_builder.rb b/app/services/whatsapp/history_sync/message_builder.rb
+new file mode 100644
+index 0000000..3a372a1
+--- /dev/null
++++ b/app/services/whatsapp/history_sync/message_builder.rb
+@@ -0,0 +1,129 @@
++class Whatsapp::HistorySync::MessageBuilder
++  HISTORY_SOURCE = 'whatsapp_history_sync'.freeze
++  MEDIA_TYPES = %w[audio document image sticker video voice].freeze
++  CONTENT_BUILDERS = {
++    'button' => :button_content,
++    'interactive' => :interactive_content,
++    'location' => :location_content,
++    'media_placeholder' => :history_media_copy,
++    'text' => :text_content
++  }.freeze
++  STATUS_MAP = {
++    'DELIVERED' => :delivered,
++    'ERROR' => :failed,
++    'PENDING' => :sent,
++    'PLAYED' => :read,
++    'READ' => :read,
++    'SENT' => :sent
++  }.freeze
++
++  def initialize(sync, conversation)
++    @sync = sync
++    @channel = sync.channel
++    @inbox = @channel.inbox
++    @conversation = conversation
++  end
++
++  def perform(message)
++    source_id = message.fetch('id').to_s
++    return if Message.exists?(source_id: source_id)
++    return unless Whatsapp::MessageDedupLock.new(source_id).acquire!
++
++    build_attributes(message, source_id)
++  end
++
++  private
++
++  attr_reader :sync, :channel, :inbox, :conversation
++
++  def build_attributes(message, source_id)
++    direction = message_direction(message)
++    content = message_content(message).to_s.truncate(150_000)
++    timestamp = Time.zone.at(Integer(message.fetch('timestamp')))
++    message_record_attributes(message, source_id, direction, content, timestamp)
++  end
++
++  def message_record_attributes(message, source_id, direction, content, timestamp)
++    {
++      account_id: inbox.account_id,
++      inbox_id: inbox.id,
++      conversation_id: conversation.id,
++      message_type: Message.message_types.fetch(direction),
++      content_type: Message.content_types[:text],
++      content: content,
++      processed_message_content: content,
++      private: false,
++      status: Message.statuses.fetch(message_status(message)),
++      sender_type: direction == :incoming ? 'Contact' : nil,
++      sender_id: direction == :incoming ? conversation.contact_id : nil,
++      source_id: source_id,
++      content_attributes: content_attributes(direction),
++      additional_attributes: additional_attributes(message),
++      created_at: timestamp,
++      updated_at: timestamp
++    }
++  end
++
++  def content_attributes(direction)
++    attributes = { historical: true }
++    attributes[:external_echo] = true if direction == :outgoing
++    attributes
++  end
++
++  def additional_attributes(message)
++    {
++      source: HISTORY_SOURCE,
++      whatsapp_history_sync_id: sync.id,
++      whatsapp_history_status: message.dig('history_context', 'status')
++    }.compact
++  end
++
++  def message_direction(message)
++    message['from'].to_s.gsub(/\D/, '') == channel.phone_number.to_s.gsub(/\D/, '') ? :outgoing : :incoming
++  end
++
++  def message_status(message)
++    STATUS_MAP.fetch(message.dig('history_context', 'status').to_s.upcase, :sent)
++  end
++
++  def message_content(message)
++    type = message['type'].to_s
++    payload = message[type] || {}
++    content_for(type, payload)
++  end
++
++  def content_for(type, payload)
++    return media_content(payload) if MEDIA_TYPES.include?(type)
++
++    builder = CONTENT_BUILDERS.fetch(type, :unsupported_content)
++    builder == :history_media_copy ? history_media_copy : __send__(builder, payload)
++  end
++
++  def text_content(payload)
++    payload['body']
++  end
++
++  def media_content(payload)
++    payload['caption'].presence || payload['filename'].presence || history_media_copy
++  end
++
++  def location_content(payload)
++    [payload['name'], payload['address']].compact_blank.join(', ')
++  end
++
++  def interactive_content(payload)
++    payload.dig('button_reply', 'title') || payload.dig('list_reply', 'title')
++  end
++
++  def button_content(payload)
++    payload['text']
++  end
++
++  def unsupported_content(_payload)
++    I18n.t('conversations.messages.whatsapp.history_unsupported')
++  end
++
++  def history_media_copy
++    I18n.t('conversations.messages.whatsapp.history_media')
++  end
++end
+diff --git a/app/services/whatsapp/history_sync/request_service.rb b/app/services/whatsapp/history_sync/request_service.rb
+new file mode 100644
+index 0000000..8be30e8
+--- /dev/null
++++ b/app/services/whatsapp/history_sync/request_service.rb
+@@ -0,0 +1,51 @@
++class Whatsapp::HistorySync::RequestService
++  def initialize(channel)
++    @channel = channel
++  end
++
++  def perform
++    sync = create_sync
++    # IMEP: um sync que terminou em falha/recusa pode ser pedido de novo (nova conexão de coexistência).
++    return sync unless sync.previously_new_record? || reset_terminal_sync!(sync)
++
++    response = api_client.request_history_sync(phone_number_id)
++    sync.update!(
++      request_id: response['request_id'],
++      started_at: Time.current,
++      status: :requested
++    )
++    sync
++  rescue StandardError => e
++    sync&.update!(status: :failed, last_error_message: e.message, started_at: Time.current)
++    raise
++  end
++
++  private
++
++  attr_reader :channel
++
++  def create_sync
++    existing = WhatsappHistorySync.find_by(whatsapp_channel_id: channel.id)
++    return existing if existing
++
++    channel.create_whatsapp_history_sync!(status: :requested)
++  rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid
++    WhatsappHistorySync.find_by!(whatsapp_channel_id: channel.id)
++  end
++
++  def reset_terminal_sync!(sync)
++    return false unless sync.failed? || sync.not_shared?
++
++    sync.update!(status: :requested, request_id: nil, progress: 0, last_error_code: nil, last_error_message: nil,
++                 started_at: nil, first_event_at: nil, completed_at: nil)
++    true
++  end
++
++  def api_client
++    @api_client ||= Whatsapp::FacebookApiClient.new(channel.provider_config['api_key'])
++  end
++
++  def phone_number_id
++    channel.provider_config.fetch('phone_number_id')
++  end
++end
+diff --git a/app/services/whatsapp/history_sync/thread_importer.rb b/app/services/whatsapp/history_sync/thread_importer.rb
+new file mode 100644
+index 0000000..ee1ab2b
+--- /dev/null
++++ b/app/services/whatsapp/history_sync/thread_importer.rb
+@@ -0,0 +1,42 @@
++class Whatsapp::HistorySync::ThreadImporter
++  def initialize(sync)
++    @sync = sync
++    @inbox = sync.channel.inbox
++  end
++
++  def perform(source_id, messages)
++    lock_key = format(::Redis::Alfred::WHATSAPP_MESSAGE_MUTEX, inbox_id: inbox.id, sender_id: source_id)
++    result = nil
++    acquired = Redis::LockManager.new.with_lock(lock_key, 30.seconds) do
++      result = persist(source_id, messages)
++    end
++    raise "Could not lock WhatsApp history thread #{source_id}" unless acquired
++
++    result
++  end
++
++  private
++
++  attr_reader :sync, :inbox
++
++  def persist(source_id, messages)
++    conversation, conversation_created = Whatsapp::HistorySync::ContactConversationBuilder.new(sync, source_id).perform(messages)
++    attributes = build_message_attributes(conversation, messages)
++    return { messages: 0, conversation_created: conversation_created } if attributes.empty?
++
++    result = Message.insert_all!(attributes, returning: %w[id]) # rubocop:disable Rails/SkipsModelValidations
++    reindex_messages(result.rows.flatten)
++    { messages: result.rows.size, conversation_created: conversation_created }
++  end
++
++  def build_message_attributes(conversation, messages)
++    builder = Whatsapp::HistorySync::MessageBuilder.new(sync, conversation)
++    messages.filter_map { |message| builder.perform(message) }
++  end
++
++  def reindex_messages(message_ids)
++    Message.where(id: message_ids).find_each do |message|
++      message.__send__(:reindex_for_search) if message.should_index?
++    end
++  end
++end
+diff --git a/app/services/whatsapp/webhook_setup_service.rb b/app/services/whatsapp/webhook_setup_service.rb
+index 8c0d899..77870c8 100644
+--- a/app/services/whatsapp/webhook_setup_service.rb
++++ b/app/services/whatsapp/webhook_setup_service.rb
+@@ -83,7 +83,7 @@ class Whatsapp::WebhookSetupService
+ 
+   # Subscribe to `calls` only when voice calling is enabled on the inbox
+   def subscribed_fields
+-    fields = %w[messages smb_message_echoes]
++    fields = Whatsapp::FacebookApiClient::WEBHOOK_DEFAULT_FIELDS.dup
+     fields << 'calls' if calls_enabled_on_waba?
+     fields
+   end
+diff --git a/app/views/api/v1/models/_inbox.json.jbuilder b/app/views/api/v1/models/_inbox.json.jbuilder
+index 5622b2a..61a2dd2 100644
+--- a/app/views/api/v1/models/_inbox.json.jbuilder
++++ b/app/views/api/v1/models/_inbox.json.jbuilder
+@@ -144,6 +144,7 @@ json.bot_name resource.channel.try(:bot_name) if resource.telegram?
+ if resource.whatsapp?
+   message_templates = resource.channel.try(:message_templates)
+   json.message_templates message_templates.is_a?(Array) ? message_templates : []
++  json.history_sync resource.channel.try(:whatsapp_history_sync)&.api_payload
+   json.provider_config resource.channel.try(:provider_config) if Current.account_user&.administrator?
+   if Current.account_user&.administrator? &&
+      ChatwootApp.chatwoot_cloud? &&
+diff --git a/config/locales/en.yml b/config/locales/en.yml
+index 3ce0655..f79acfc 100644
+--- a/config/locales/en.yml
++++ b/config/locales/en.yml
+@@ -320,6 +320,8 @@ en:
+         call_permission_request_body: 'We would like to call you regarding your conversation.'
+         flow_response: 'Submitted a flow response'
+         request_contact_info: 'Would you like to share your phone number with us?'
++        history_media: 'Media from WhatsApp chat history.'
++        history_unsupported: 'This historical WhatsApp message is unavailable.'
+         unsupported_message: 'This message is unavailable.'
+       voice_call:
+         twilio: 'Voice Call'
+diff --git a/config/locales/pt_BR.yml b/config/locales/pt_BR.yml
+index 6ef06c0..0029a58 100644
+--- a/config/locales/pt_BR.yml
++++ b/config/locales/pt_BR.yml
+@@ -291,6 +291,8 @@ pt_BR:
+         list_button_label: 'Escolha um item'
+         call_permission_request_body: 'Gostaríamos de ligar para você em relação à sua conversa.'
+         flow_response: 'Enviou uma resposta de um Flow'
++        history_media: 'Mídia do histórico de conversas do WhatsApp.'
++        history_unsupported: 'Esta mensagem do histórico do WhatsApp não está disponível.'
+         unsupported_message: 'Esta mensagem não está disponível.'
+       voice_call:
+         twilio: 'Chamada de Voz'
+diff --git a/db/migrate/20260816000000_create_whatsapp_history_syncs.rb b/db/migrate/20260816000000_create_whatsapp_history_syncs.rb
+new file mode 100644
+index 0000000..c8cdab4
+--- /dev/null
++++ b/db/migrate/20260816000000_create_whatsapp_history_syncs.rb
+@@ -0,0 +1,53 @@
++class CreateWhatsappHistorySyncs < ActiveRecord::Migration[7.1]
++  def change
++    create_syncs_table
++    create_events_table
++    add_indexes
++  end
++
++  private
++
++  def create_syncs_table
++    create_table :whatsapp_history_syncs do |t|
++      t.bigint :whatsapp_channel_id, null: false
++      t.integer :status, null: false, default: 0
++      t.integer :progress, null: false, default: 0
++      t.integer :imported_messages, null: false, default: 0
++      t.integer :imported_conversations, null: false, default: 0
++      t.string :request_id
++      t.string :last_error_code
++      t.text :last_error_message
++      t.datetime :started_at
++      t.datetime :first_event_at
++      t.datetime :completed_at
++      t.timestamps
++    end
++  end
++
++  def create_events_table
++    create_table :whatsapp_history_sync_events do |t|
++      t.bigint :whatsapp_history_sync_id, null: false
++      t.string :event_key, null: false
++      t.integer :status, null: false, default: 0
++      t.integer :phase
++      t.integer :chunk_order
++      t.integer :progress
++      t.jsonb :payload, null: false, default: {}
++      t.text :error_message
++      t.datetime :processed_at
++      t.timestamps
++    end
++  end
++
++  def add_indexes
++    add_index :whatsapp_history_syncs, :whatsapp_channel_id, unique: true
++    add_index :whatsapp_history_syncs, :request_id
++    add_index :whatsapp_history_sync_events,
++              [:whatsapp_history_sync_id, :event_key],
++              unique: true,
++              name: 'idx_whatsapp_history_events_on_sync_and_key'
++    add_index :whatsapp_history_sync_events,
++              [:whatsapp_history_sync_id, :status],
++              name: 'idx_whatsapp_history_events_on_sync_and_status'
++  end
++end
+diff --git a/db/schema.rb b/db/schema.rb
+index a6711fe..9cc8cf1 100644
+--- a/db/schema.rb
++++ b/db/schema.rb
+@@ -1580,6 +1580,40 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_31_000000) do
+     t.index ["account_id", "url"], name: "index_webhooks_on_account_id_and_url", unique: true
+   end
+ 
++  create_table "whatsapp_history_sync_events", force: :cascade do |t|
++    t.bigint "whatsapp_history_sync_id", null: false
++    t.string "event_key", null: false
++    t.integer "status", default: 0, null: false
++    t.integer "phase"
++    t.integer "chunk_order"
++    t.integer "progress"
++    t.jsonb "payload", default: {}, null: false
++    t.text "error_message"
++    t.datetime "processed_at"
++    t.datetime "created_at", null: false
++    t.datetime "updated_at", null: false
++    t.index ["whatsapp_history_sync_id", "event_key"], name: "idx_whatsapp_history_events_on_sync_and_key", unique: true
++    t.index ["whatsapp_history_sync_id", "status"], name: "idx_whatsapp_history_events_on_sync_and_status"
++  end
++
++  create_table "whatsapp_history_syncs", force: :cascade do |t|
++    t.bigint "whatsapp_channel_id", null: false
++    t.integer "status", default: 0, null: false
++    t.integer "progress", default: 0, null: false
++    t.integer "imported_messages", default: 0, null: false
++    t.integer "imported_conversations", default: 0, null: false
++    t.string "request_id"
++    t.string "last_error_code"
++    t.text "last_error_message"
++    t.datetime "started_at"
++    t.datetime "first_event_at"
++    t.datetime "completed_at"
++    t.datetime "created_at", null: false
++    t.datetime "updated_at", null: false
++    t.index ["request_id"], name: "index_whatsapp_history_syncs_on_request_id"
++    t.index ["whatsapp_channel_id"], name: "index_whatsapp_history_syncs_on_whatsapp_channel_id", unique: true
++  end
++
+   create_table "working_hours", force: :cascade do |t|
+     t.bigint "inbox_id"
+     t.bigint "account_id"
+diff --git a/lib/tasks/imep_whatsapp_history.rake b/lib/tasks/imep_whatsapp_history.rake
+new file mode 100644
+index 0000000..7a355e7
+--- /dev/null
++++ b/lib/tasks/imep_whatsapp_history.rake
+@@ -0,0 +1,21 @@
++# IMEP: comandos de reserva do histórico oficial do WhatsApp (coexistência).
++# A Meta só aceita o pedido em até 24 h depois da conexão de coexistência, uma vez só.
++namespace :imep do
++  namespace :whatsapp_history do
++    desc 'Pede à Meta o histórico do app (smb_app_data sync_type=history) para a caixa INBOX_ID'
++    task :request, [:inbox_id] => :environment do |_task, args|
++      channel = Inbox.find(args.fetch(:inbox_id)).channel
++      raise ArgumentError, 'A caixa não é do WhatsApp Cloud' unless channel.is_a?(Channel::Whatsapp) && channel.provider == 'whatsapp_cloud'
++
++      sync = Whatsapp::HistorySync::RequestService.new(channel).perform
++      puts sync.api_payload.to_json
++    end
++
++    desc 'Mostra o status do histórico da caixa INBOX_ID'
++    task :status, [:inbox_id] => :environment do |_task, args|
++      sync = Inbox.find(args.fetch(:inbox_id)).channel.try(:whatsapp_history_sync)
++      puts(sync ? sync.api_payload.merge(last_error_code: sync.last_error_code, last_error_message: sync.last_error_message,
++                                         events: sync.events.group(:status).count).to_json : 'sem pedido de histórico')
++    end
++  end
++end
+diff --git a/spec/services/whatsapp/facebook_api_client_spec.rb b/spec/services/whatsapp/facebook_api_client_spec.rb
+index deb4737..6bf3e73 100644
+--- a/spec/services/whatsapp/facebook_api_client_spec.rb
++++ b/spec/services/whatsapp/facebook_api_client_spec.rb
+@@ -195,7 +195,7 @@ describe Whatsapp::FacebookApiClient do
+         stub_request(:post, "https://graph.facebook.com/#{api_version}/#{waba_id}/subscribed_apps")
+           .with(
+             headers: { 'Authorization' => "Bearer #{access_token}", 'Content-Type' => 'application/json' },
+-            body: { subscribed_fields: %w[messages smb_message_echoes] }.to_json
++            body: { subscribed_fields: %w[messages smb_message_echoes history] }.to_json
+           )
+           .to_return(
+             status: 200,
+diff --git a/spec/services/whatsapp/history_sync/imep_history_sync_spec.rb b/spec/services/whatsapp/history_sync/imep_history_sync_spec.rb
+new file mode 100644
+index 0000000..3681015
+--- /dev/null
++++ b/spec/services/whatsapp/history_sync/imep_history_sync_spec.rb
+@@ -0,0 +1,196 @@
++require 'rails_helper'
++
++# IMEP: histórico oficial do WhatsApp (coexistência) — pedido na reautorização de caixa manual,
++# importação com payloads no formato da documentação da Meta, recusa 2593109 e duplicidade.
++describe 'Histórico do WhatsApp em coexistência (IMEP)' do
++  let(:account) { create(:account) }
++  let(:business_phone) { '+5562999990000' }
++  let(:customer_phone) { '5562988887777' }
++  let(:channel) do
++    create(:channel_whatsapp, account: account, provider: 'whatsapp_cloud', phone_number: business_phone,
++                              provider_config: { 'source' => 'manual_setup_v2' },
++                              validate_provider_config: false, sync_templates: false)
++  end
++  let(:inbox) { channel.inbox }
++  let(:api_client) { instance_double(Whatsapp::FacebookApiClient) }
++
++  def wamid
++    "wamid.imep_#{SecureRandom.hex(10)}"
++  end
++
++  def history_payload(history)
++    {
++      object: 'whatsapp_business_account',
++      entry: [{
++        id: '123456789',
++        changes: [{
++          field: 'history',
++          value: {
++            messaging_product: 'whatsapp',
++            metadata: { display_phone_number: business_phone.delete('+'), phone_number_id: '123456789' },
++            history: history
++          }
++        }]
++      }]
++    }
++  end
++
++  def chunk(messages, phase: 0, chunk_order: 1, progress: 50)
++    [{ metadata: { phase: phase, chunk_order: chunk_order, progress: progress },
++       threads: [{ id: customer_phone, messages: messages }] }]
++  end
++
++  def text_message(from:, body:, timestamp:, id: wamid, status: 'READ')
++    { from: from, id: id, timestamp: timestamp.to_i.to_s, type: 'text', text: { body: body },
++      history_context: { status: status } }
++  end
++
++  def deliver(payload)
++    event = Whatsapp::HistorySync::IngestService.new(channel: channel, params: payload).perform
++    Whatsapp::HistorySyncEventJob.perform_now(event.id)
++    event.reload
++  end
++
++  before do
++    allow(Whatsapp::FacebookApiClient).to receive(:new).and_return(api_client)
++  end
++
++  describe Whatsapp::HistorySync::RequestService do
++    it 'pede o histórico à Meta quando ainda não existe pedido' do
++      expect(api_client).to receive(:request_history_sync).with('123456789').and_return({ 'request_id' => 'req-1' })
++
++      sync = described_class.new(channel).perform
++
++      expect(sync).to be_requested
++      expect(sync.request_id).to eq('req-1')
++    end
++
++    it 'não pede de novo quando o histórico já foi importado' do
++      channel.create_whatsapp_history_sync!(status: :completed, progress: 100)
++      expect(api_client).not_to receive(:request_history_sync)
++
++      expect(described_class.new(channel).perform).to be_completed
++    end
++
++    it 'pede de novo quando o pedido anterior foi recusado (nova conexão)' do
++      channel.create_whatsapp_history_sync!(status: :not_shared, last_error_code: '2593109', progress: 100)
++      expect(api_client).to receive(:request_history_sync).and_return({ 'request_id' => 'req-2' })
++
++      sync = described_class.new(channel).perform
++
++      expect(sync).to be_requested
++      expect(sync.request_id).to eq('req-2')
++      expect(sync.progress).to eq(0)
++      expect(sync.last_error_code).to be_nil
++    end
++  end
++
++  describe Whatsapp::EmbeddedSignupService do
++    let(:params) { { code: 'code', waba_id: '123456789', phone_number_id: '123456789', is_coexistence: true } }
++    let(:service) { described_class.new(account: account, params: params, inbox_id: inbox.id) }
++
++    before do
++      token_exchange = instance_double(Whatsapp::TokenExchangeService, perform: 'token-novo')
++      allow(Whatsapp::TokenExchangeService).to receive(:new).and_return(token_exchange)
++      phone_service = instance_double(Whatsapp::PhoneInfoService,
++                                      perform: { phone_number: business_phone, phone_number_id: '123456789', business_name: 'IMEP' })
++      allow(Whatsapp::PhoneInfoService).to receive(:new).and_return(phone_service)
++      allow_any_instance_of(Channel::Whatsapp).to receive(:setup_webhooks).and_return(true) # rubocop:disable RSpec/AnyInstance
++    end
++
++    it 'pede o histórico ao reconectar pela Meta uma caixa criada por configuração manual' do
++      expect(api_client).to receive(:request_history_sync).with('123456789').and_return({ 'request_id' => 'req-3' })
++
++      result = service.perform
++
++      expect(result.provider_config['source']).to eq('embedded_signup')
++      expect(result.reload.whatsapp_history_sync).to be_requested
++    end
++
++    it 'não pede o histórico quando a reconexão não é de coexistência' do
++      expect(api_client).not_to receive(:request_history_sync)
++
++      described_class.new(account: account, params: params.merge(is_coexistence: false), inbox_id: inbox.id).perform
++    end
++
++    it 'não pede de novo quando o histórico já foi importado' do
++      channel.create_whatsapp_history_sync!(status: :completed, progress: 100)
++      expect(api_client).not_to receive(:request_history_sync)
++
++      service.perform
++    end
++  end
++
++  describe 'importação do webhook history' do
++    let(:base_time) { Time.zone.parse('2026-06-10 09:00:00') }
++
++    before { channel.create_whatsapp_history_sync!(status: :requested, request_id: 'req-1') }
++
++    it 'grava as mensagens no horário original, com a direção certa e a conversa resolvida' do
++      deliver(history_payload(chunk([
++                                      text_message(from: customer_phone, body: 'Bom dia, tem horário?', timestamp: base_time),
++                                      text_message(from: business_phone.delete('+'), body: 'Temos às 14h', timestamp: base_time + 5.minutes)
++                                    ])))
++
++      conversation = inbox.conversations.find_by!(identifier: "whatsapp_history_sync:#{inbox.id}:#{customer_phone}")
++      incoming, outgoing = conversation.messages.order(:created_at).to_a
++
++      expect(conversation).to be_resolved
++      expect(incoming).to be_incoming
++      expect(incoming.content).to eq('Bom dia, tem horário?')
++      expect(incoming.created_at).to eq(base_time)
++      expect(outgoing).to be_outgoing
++      expect(outgoing.content).to eq('Temos às 14h')
++      expect(outgoing.created_at).to eq(base_time + 5.minutes)
++      expect(outgoing.content_attributes).to include('historical' => true, 'external_echo' => true)
++      expect(channel.whatsapp_history_sync.reload.imported_messages).to eq(2)
++    end
++
++    it 'não dispara envio nem webhook de saída (n8n) ao importar' do
++      expect do
++        deliver(history_payload(chunk([text_message(from: business_phone.delete('+'), body: 'Resposta antiga', timestamp: base_time)])))
++      end.not_to have_enqueued_job(SendReplyJob)
++
++      expect(WebhookJob).not_to have_been_enqueued
++    end
++
++    it 'não duplica quando a Meta reenvia o mesmo bloco' do
++      payload = history_payload(chunk([text_message(from: customer_phone, body: 'Oi', timestamp: base_time)]))
++
++      deliver(payload)
++      expect { deliver(payload) }.not_to change(Message, :count)
++    end
++
++    it 'não duplica a mensagem que já entrou pelo echo ao vivo' do
++      id = wamid
++      first = history_payload(chunk([text_message(from: business_phone.delete('+'), body: 'Já entrou', timestamp: base_time, id: id)]))
++      deliver(first)
++
++      again = history_payload(chunk([text_message(from: business_phone.delete('+'), body: 'Já entrou', timestamp: base_time, id: id)],
++                                    chunk_order: 2))
++      expect { deliver(again) }.not_to change(Message, :count)
++    end
++
++    it 'conclui quando o progresso chega a 100 com todos os blocos processados' do
++      deliver(history_payload(chunk([text_message(from: customer_phone, body: 'Fase 0', timestamp: base_time)],
++                                    phase: 0, chunk_order: 1, progress: 40)))
++      deliver(history_payload(chunk([text_message(from: customer_phone, body: 'Fase 2', timestamp: base_time - 90.days)],
++                                    phase: 2, chunk_order: 1, progress: 100)))
++
++      sync = channel.whatsapp_history_sync.reload
++      expect(sync).to be_completed
++      expect(sync.progress).to eq(100)
++      expect(sync.imported_conversations).to eq(1)
++    end
++
++    it 'marca como não compartilhado quando a empresa recusa (erro 2593109)' do
++      deliver(history_payload([{ errors: [{ code: 2_593_109, title: 'History sync is turned off by the business',
++                                            message: 'History sync is turned off by the business' }] }]))
++
++      sync = channel.whatsapp_history_sync.reload
++      expect(sync).to be_not_shared
++      expect(sync.last_error_code).to eq('2593109')
++      expect(Message.where(inbox_id: inbox.id).count).to eq(0)
++    end
++  end
++end
+diff --git a/spec/services/whatsapp/webhook_setup_service_spec.rb b/spec/services/whatsapp/webhook_setup_service_spec.rb
+index 658ae7a..13ded6f 100644
+--- a/spec/services/whatsapp/webhook_setup_service_spec.rb
++++ b/spec/services/whatsapp/webhook_setup_service_spec.rb
+@@ -50,7 +50,7 @@ describe Whatsapp::WebhookSetupService do
+         allow(api_client).to receive(:register_phone_number).with('123456789', 223_456)
+         allow(api_client).to receive(:subscribe_phone_number_webhook)
+           .with(waba_id, '123456789', anything, 'test_verify_token',
+-                subscribed_fields: %w[messages smb_message_echoes]).and_return({ 'success' => true })
++                subscribed_fields: %w[messages smb_message_echoes history]).and_return({ 'success' => true })
+         allow(channel).to receive(:save!)
+       end
+ 
+@@ -59,7 +59,7 @@ describe Whatsapp::WebhookSetupService do
+           expect(api_client).to receive(:register_phone_number).with('123456789', 223_456)
+           expect(api_client).to receive(:subscribe_phone_number_webhook)
+             .with(waba_id, '123456789', 'https://app.chatwoot.com/webhooks/whatsapp/+1234567890', 'test_verify_token',
+-                  subscribed_fields: %w[messages smb_message_echoes])
++                  subscribed_fields: %w[messages smb_message_echoes history])
+           service.perform
+         end
+       end
+@@ -83,7 +83,7 @@ describe Whatsapp::WebhookSetupService do
+       before do
+         allow(api_client).to receive(:subscribe_phone_number_webhook)
+           .with(waba_id, '123456789', anything, 'test_verify_token',
+-                subscribed_fields: %w[messages smb_message_echoes]).and_return({ 'success' => true })
++                subscribed_fields: %w[messages smb_message_echoes history]).and_return({ 'success' => true })
+       end
+ 
+       it 'skips the health check entirely and does not register the phone number' do
+@@ -93,7 +93,7 @@ describe Whatsapp::WebhookSetupService do
+           expect(api_client).not_to receive(:register_phone_number)
+           expect(api_client).to receive(:subscribe_phone_number_webhook)
+             .with(waba_id, '123456789', 'https://app.chatwoot.com/webhooks/whatsapp/+1234567891', 'test_verify_token',
+-                  subscribed_fields: %w[messages smb_message_echoes])
++                  subscribed_fields: %w[messages smb_message_echoes history])
+           embedded_service.perform
+         end
+       end
+@@ -121,7 +121,7 @@ describe Whatsapp::WebhookSetupService do
+                                                                           })
+         allow(api_client).to receive(:subscribe_phone_number_webhook)
+           .with(waba_id, '123456789', anything, 'test_verify_token',
+-                subscribed_fields: %w[messages smb_message_echoes]).and_return({ 'success' => true })
++                subscribed_fields: %w[messages smb_message_echoes history]).and_return({ 'success' => true })
+       end
+ 
+       it 'does not check verification and does not register the phone number' do
+@@ -130,7 +130,7 @@ describe Whatsapp::WebhookSetupService do
+           expect(api_client).not_to receive(:register_phone_number)
+           expect(api_client).to receive(:subscribe_phone_number_webhook)
+             .with(waba_id, '123456789', 'https://app.chatwoot.com/webhooks/whatsapp/+1234567891', 'test_verify_token',
+-                  subscribed_fields: %w[messages smb_message_echoes])
++                  subscribed_fields: %w[messages smb_message_echoes history])
+           embedded_service.perform
+         end
+       end
+@@ -162,7 +162,7 @@ describe Whatsapp::WebhookSetupService do
+         allow(api_client).to receive(:register_phone_number).with('123456789', 223_456)
+         allow(api_client).to receive(:subscribe_phone_number_webhook)
+           .with(waba_id, '123456789', anything, 'test_verify_token',
+-                subscribed_fields: %w[messages smb_message_echoes]).and_return({ 'success' => true })
++                subscribed_fields: %w[messages smb_message_echoes history]).and_return({ 'success' => true })
+         allow(embedded_channel).to receive(:save!)
+       end
+ 
+@@ -171,7 +171,7 @@ describe Whatsapp::WebhookSetupService do
+           expect(api_client).to receive(:register_phone_number).with('123456789', 223_456)
+           expect(api_client).to receive(:subscribe_phone_number_webhook)
+             .with(waba_id, '123456789', 'https://app.chatwoot.com/webhooks/whatsapp/+1234567891', 'test_verify_token',
+-                  subscribed_fields: %w[messages smb_message_echoes])
++                  subscribed_fields: %w[messages smb_message_echoes history])
+           embedded_service.perform
+         end
+       end
+@@ -186,7 +186,7 @@ describe Whatsapp::WebhookSetupService do
+                                                                           })
+         allow(api_client).to receive(:subscribe_phone_number_webhook)
+           .with(waba_id, '123456789', anything, 'test_verify_token',
+-                subscribed_fields: %w[messages smb_message_echoes]).and_return({ 'success' => true })
++                subscribed_fields: %w[messages smb_message_echoes history]).and_return({ 'success' => true })
+       end
+ 
+       it 'does NOT register phone, but sets up webhook' do
+@@ -194,7 +194,7 @@ describe Whatsapp::WebhookSetupService do
+           expect(api_client).not_to receive(:register_phone_number)
+           expect(api_client).to receive(:subscribe_phone_number_webhook)
+             .with(waba_id, '123456789', 'https://app.chatwoot.com/webhooks/whatsapp/+1234567890', 'test_verify_token',
+-                  subscribed_fields: %w[messages smb_message_echoes])
++                  subscribed_fields: %w[messages smb_message_echoes history])
+           service.perform
+         end
+       end
+@@ -211,7 +211,7 @@ describe Whatsapp::WebhookSetupService do
+         allow(api_client).to receive(:register_phone_number).with('123456789', 223_456)
+         allow(api_client).to receive(:subscribe_phone_number_webhook)
+           .with(waba_id, '123456789', anything, 'test_verify_token',
+-                subscribed_fields: %w[messages smb_message_echoes]).and_return({ 'success' => true })
++                subscribed_fields: %w[messages smb_message_echoes history]).and_return({ 'success' => true })
+         allow(channel).to receive(:save!)
+       end
+ 
+@@ -220,7 +220,7 @@ describe Whatsapp::WebhookSetupService do
+           expect(api_client).to receive(:register_phone_number).with('123456789', 223_456)
+           expect(api_client).to receive(:subscribe_phone_number_webhook)
+             .with(waba_id, '123456789', 'https://app.chatwoot.com/webhooks/whatsapp/+1234567890', 'test_verify_token',
+-                  subscribed_fields: %w[messages smb_message_echoes])
++                  subscribed_fields: %w[messages smb_message_echoes history])
+           service.perform
+         end
+       end
+@@ -237,7 +237,7 @@ describe Whatsapp::WebhookSetupService do
+         allow(api_client).to receive(:register_phone_number).with('123456789', 223_456)
+         allow(api_client).to receive(:subscribe_phone_number_webhook)
+           .with(waba_id, '123456789', anything, 'test_verify_token',
+-                subscribed_fields: %w[messages smb_message_echoes]).and_return({ 'success' => true })
++                subscribed_fields: %w[messages smb_message_echoes history]).and_return({ 'success' => true })
+         allow(channel).to receive(:save!)
+       end
+ 
+@@ -246,7 +246,7 @@ describe Whatsapp::WebhookSetupService do
+           expect(api_client).to receive(:register_phone_number).with('123456789', 223_456)
+           expect(api_client).to receive(:subscribe_phone_number_webhook)
+             .with(waba_id, '123456789', 'https://app.chatwoot.com/webhooks/whatsapp/+1234567890', 'test_verify_token',
+-                  subscribed_fields: %w[messages smb_message_echoes])
++                  subscribed_fields: %w[messages smb_message_echoes history])
+           service.perform
+         end
+       end
+@@ -406,7 +406,7 @@ describe Whatsapp::WebhookSetupService do
+                                                                           })
+         allow(api_client).to receive(:subscribe_phone_number_webhook)
+           .with(waba_id, '123456789', anything, 'existing_verify_token',
+-                subscribed_fields: %w[messages smb_message_echoes]).and_return({ 'success' => true })
++                subscribed_fields: %w[messages smb_message_echoes history]).and_return({ 'success' => true })
+       end
+ 
+       it 'successfully reauthorizes with new access token' do
+@@ -414,7 +414,7 @@ describe Whatsapp::WebhookSetupService do
+           expect(api_client).not_to receive(:register_phone_number)
+           expect(api_client).to receive(:subscribe_phone_number_webhook)
+             .with(waba_id, '123456789', 'https://app.chatwoot.com/webhooks/whatsapp/+1234567890', 'existing_verify_token',
+-                  subscribed_fields: %w[messages smb_message_echoes])
++                  subscribed_fields: %w[messages smb_message_echoes history])
+           service_reauth.perform
+         end
+       end
+@@ -423,7 +423,7 @@ describe Whatsapp::WebhookSetupService do
+         with_modified_env FRONTEND_URL: 'https://app.chatwoot.com' do
+           expect(api_client).to receive(:subscribe_phone_number_webhook)
+             .with(waba_id, '123456789', anything, 'existing_verify_token',
+-                  subscribed_fields: %w[messages smb_message_echoes])
++                  subscribed_fields: %w[messages smb_message_echoes history])
+           service_reauth.perform
+         end
+       end
+@@ -438,7 +438,7 @@ describe Whatsapp::WebhookSetupService do
+                                                                           })
+         allow(api_client).to receive(:subscribe_phone_number_webhook)
+           .with(waba_id, '123456789', anything, 'test_verify_token',
+-                subscribed_fields: %w[messages smb_message_echoes]).and_return({ 'success' => true })
++                subscribed_fields: %w[messages smb_message_echoes history]).and_return({ 'success' => true })
+       end
+ 
+       it 'completes successfully without errors' do

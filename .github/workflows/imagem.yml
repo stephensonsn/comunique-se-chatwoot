@@ -13,7 +13,77 @@ permissions:
   packages: write
 
 jobs:
+  # RSpec das partes tocadas pelos patches (igual ao run_foss_spec oficial, só os arquivos do WhatsApp).
+  rspec:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ''
+          POSTGRES_DB: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --mount type=tmpfs,destination=/var/lib/postgresql/data
+          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:alpine
+        ports:
+          - 6379:6379
+        options: --entrypoint redis-server
+    env:
+      RAILS_ENV: test
+      POSTGRES_HOST: localhost
+      POSTGRES_USERNAME: postgres
+      REDIS_URL: redis://localhost:6379
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Aplicar patches
+        run: bash scripts/aplicar.sh chatwoot
+
+      - name: Edição CE
+        working-directory: chatwoot
+        run: rm -rf enterprise spec/enterprise
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          working-directory: chatwoot
+          bundler-cache: true
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.2.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Banco de teste
+        working-directory: chatwoot
+        run: |
+          cp .env.example .env
+          pnpm install --frozen-lockfile --ignore-scripts
+          bundle exec rake db:create
+          bundle exec rake db:schema:load
+
+      - name: RSpec do WhatsApp (histórico em coexistência)
+        working-directory: chatwoot
+        run: |
+          bundle exec rspec \
+            spec/services/whatsapp/history_sync \
+            spec/services/whatsapp/embedded_signup_service_spec.rb \
+            spec/services/whatsapp/reauthorization_service_spec.rb \
+            spec/services/whatsapp/webhook_setup_service_spec.rb \
+            spec/services/whatsapp/facebook_api_client_spec.rb \
+            spec/services/whatsapp/message_dedup_lock_spec.rb \
+            spec/jobs/webhooks/whatsapp_events_job_spec.rb
+
   imagem:
+    needs: rspec
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
