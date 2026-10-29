@@ -1523,10 +1523,10 @@ index a6711fe..9cc8cf1 100644
      t.bigint "account_id"
 diff --git a/lib/tasks/imep_whatsapp_history.rake b/lib/tasks/imep_whatsapp_history.rake
 new file mode 100644
-index 0000000..7a355e7
+index 0000000..43c1a4a
 --- /dev/null
 +++ b/lib/tasks/imep_whatsapp_history.rake
-@@ -0,0 +1,21 @@
+@@ -0,0 +1,39 @@
 +# IMEP: comandos de reserva do histórico oficial do WhatsApp (coexistência).
 +# A Meta só aceita o pedido em até 24 h depois da conexão de coexistência, uma vez só.
 +namespace :imep do
@@ -1546,6 +1546,24 @@ index 0000000..7a355e7
 +      puts(sync ? sync.api_payload.merge(last_error_code: sync.last_error_code, last_error_message: sync.last_error_message,
 +                                         events: sync.events.group(:status).count).to_json : 'sem pedido de histórico')
 +    end
++
++    # Reenfileira só o que falhou ou ficou parado há mais de PARADO_MIN minutos (padrão 15), na ordem da Meta.
++    # Seguro repetir: a importação não duplica (source_id + lock).
++    desc 'Reprocessa eventos do histórico com falha ou parados da caixa INBOX_ID'
++    task :reprocess, [:inbox_id, :parado_min] => :environment do |_task, args|
++      sync = Inbox.find(args.fetch(:inbox_id)).channel.try(:whatsapp_history_sync)
++      next puts('sem pedido de histórico') unless sync
++
++      limite = (args[:parado_min] || 15).to_i.minutes.ago
++      eventos = sync.events.where(status: :failed)
++                    .or(sync.events.where(status: %i[pending processing]).where('updated_at < ?', limite))
++                    .order(:phase, :chunk_order, :id)
++      ids = eventos.pluck(:id)
++      eventos.update_all(status: WhatsappHistorySyncEvent.statuses[:pending], error_message: nil, updated_at: Time.current)
++      sync.update!(status: :processing, last_error_message: nil) if ids.any? && sync.failed?
++      ids.each { |id| Whatsapp::HistorySyncEventJob.perform_later(id) }
++      puts({ reenfileirados: ids.size }.to_json)
++    end
 +  end
 +end
 diff --git a/spec/services/whatsapp/facebook_api_client_spec.rb b/spec/services/whatsapp/facebook_api_client_spec.rb
@@ -1563,10 +1581,10 @@ index deb4737..6bf3e73 100644
              status: 200,
 diff --git a/spec/services/whatsapp/history_sync/imep_history_sync_spec.rb b/spec/services/whatsapp/history_sync/imep_history_sync_spec.rb
 new file mode 100644
-index 0000000..3681015
+index 0000000..a9cb32d
 --- /dev/null
 +++ b/spec/services/whatsapp/history_sync/imep_history_sync_spec.rb
-@@ -0,0 +1,196 @@
+@@ -0,0 +1,224 @@
 +require 'rails_helper'
 +
 +# IMEP: histórico oficial do WhatsApp (coexistência) — pedido na reautorização de caixa manual,
@@ -1760,6 +1778,34 @@ index 0000000..3681015
 +      expect(sync).to be_not_shared
 +      expect(sync.last_error_code).to eq('2593109')
 +      expect(Message.where(inbox_id: inbox.id).count).to eq(0)
++    end
++  end
++
++  describe 'rake imep:whatsapp_history:reprocess' do
++    let(:sync) { channel.create_whatsapp_history_sync!(status: :failed, request_id: 'req-1') }
++
++    before do
++      Rails.application.load_tasks if Rake::Task.tasks.empty?
++      Rake::Task['imep:whatsapp_history:reprocess'].reenable
++    end
++
++    def evento(status, atualizado_em, chave)
++      sync.events.create!(event_key: chave, phase: 0, chunk_order: 1, payload: {}, status: status, updated_at: atualizado_em)
++    end
++
++    it 'reenfileira só os eventos com falha ou parados, e deixa os recentes e os processados' do
++      falhou = evento(:failed, Time.current, 'a')
++      parado = evento(:pending, 1.hour.ago, 'b')
++      evento(:pending, Time.current, 'c')
++      evento(:processed, 1.hour.ago, 'd')
++
++      expect { Rake::Task['imep:whatsapp_history:reprocess'].invoke(inbox.id.to_s, '15') }
++        .to output(/"reenfileirados":2/).to_stdout
++
++      expect(Whatsapp::HistorySyncEventJob).to have_been_enqueued.with(falhou.id)
++      expect(Whatsapp::HistorySyncEventJob).to have_been_enqueued.with(parado.id)
++      expect(falhou.reload).to be_pending
++      expect(sync.reload).to be_processing
 +    end
 +  end
 +end
