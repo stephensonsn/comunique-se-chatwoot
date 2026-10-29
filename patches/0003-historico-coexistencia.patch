@@ -1581,10 +1581,10 @@ index deb4737..6bf3e73 100644
              status: 200,
 diff --git a/spec/services/whatsapp/history_sync/imep_history_sync_spec.rb b/spec/services/whatsapp/history_sync/imep_history_sync_spec.rb
 new file mode 100644
-index 0000000..c840f40
+index 0000000..464aae3
 --- /dev/null
 +++ b/spec/services/whatsapp/history_sync/imep_history_sync_spec.rb
-@@ -0,0 +1,227 @@
+@@ -0,0 +1,229 @@
 +require 'rails_helper'
 +
 +# IMEP: histórico oficial do WhatsApp (coexistência) — pedido na reautorização de caixa manual,
@@ -1686,6 +1686,8 @@ index 0000000..c840f40
 +      # A reautorização valida o token novo na Meta (como no reauthorization_service_spec oficial).
 +      stub_request(:get, %r{\Ahttps://graph\.facebook\.com/v14\.0/.+/message_templates\?access_token=token-novo\z})
 +        .to_return(status: 200, body: { data: [] }.to_json, headers: { 'Content-Type' => 'application/json' })
++      stub_request(:get, %r{\Ahttps://graph\.facebook\.com/v14\.0/.+/phone_numbers\?.*access_token=token-novo})
++        .to_return(status: 200, body: { data: [{ id: '123456789' }] }.to_json, headers: { 'Content-Type' => 'application/json' })
 +    end
 +
 +    it 'pede o histórico ao reconectar pela Meta uma caixa criada por configuração manual' do
